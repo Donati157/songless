@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jogar — Atenis Games</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body data-page="game">
+  <header class="header">
+    <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Menu">☰</button>
+    <a class="logo" href="index.html">
+      <span class="mark">🎮</span>
+      <span class="name">Atenis<span> Games</span></span>
+    </a>
+    <div class="search">
+      <span class="ico">🔍</span>
+      <input id="search" type="text" placeholder="Buscar jogos, categorias…" autocomplete="off" />
+    </div>
+    <div class="actions">
+      <button class="icon-btn" title="Favoritos" onclick="location.href='index.html#favoritos'">❤️</button>
+      <button class="btn ghost">Entrar</button>
+      <button class="btn">＋ <span>Criar conta</span></button>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="gpage" id="gameRoot"></main>
+
+  <script src="js/data.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Paciência</title>
+<style>
+  :root{--cardW:78px;--cardH:108px;--blue:#2ba6ff;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,sans-serif;user-select:none;
+    background:radial-gradient(1200px 600px at 50% -10%, #16365c, #0a1422 60%, #070d17);color:#eef4fb}
+  .bar{display:flex;align-items:center;gap:10px;padding:10px 16px}
+  .bar .title{font-weight:800;font-size:18px;margin-right:auto;display:flex;align-items:center;gap:8px}
+  .bar .stat{background:rgba(255,255,255,.08);padding:6px 12px;border-radius:12px;font-weight:700;font-size:13px}
+  .bar button{background:linear-gradient(135deg,#2ba6ff,#1486e8);color:#fff;border:none;padding:8px 14px;
+    border-radius:12px;font-weight:800;cursor:pointer;font-size:13px}
+  .bar button.alt{background:rgba(255,255,255,.1)}
+  .bar button:hover{filter:brightness(1.1)}
+  #board{position:relative;margin:4px auto 0;width:calc(var(--cardW)*7 + 84px);max-width:100%;padding:0 8px}
+  .row{display:flex;gap:14px}
+  .slot{width:var(--cardW);height:var(--cardH);border-radius:9px;flex:0 0 auto}
+  .empty{border:2px dashed rgba(255,255,255,.18);display:grid;place-items:center;color:rgba(255,255,255,.22);font-size:30px}
+  .empty.f{font-size:34px}
+  #tableau{display:flex;gap:14px;margin-top:16px}
+  .col{width:var(--cardW);position:relative}
+  .card{position:absolute;width:var(--cardW);height:var(--cardH);border-radius:9px;left:0;cursor:pointer;
+    box-shadow:0 2px 5px rgba(0,0,0,.35);transition:top .08s}
+  .top-row .card,.top-row .slot{position:relative}
+  .face{background:#fbfdff;border:1px solid #c9d4e2}
+  .back{background:
+    repeating-linear-gradient(45deg,#1e6fb8 0 7px,#1486e8 7px 14px);border:2px solid #fff;border-radius:9px}
+  .card .r{position:absolute;font-weight:800;line-height:1;font-size:17px}
+  .card .r.tl{top:6px;left:7px}.card .r.br{bottom:6px;right:7px;transform:rotate(180deg)}
+  .card .big{position:absolute;inset:0;display:grid;place-items:center;font-size:40px}
+  .red{color:#e23857}.black{color:#1b2330}
+  .card.sel{outline:3px solid var(--blue);outline-offset:-1px;box-shadow:0 0 16px rgba(43,166,255,.7)}
+  .card.hint{outline:3px solid #ffd83a}
+  #ov{position:fixed;inset:0;display:none;place-items:center;background:rgba(6,14,26,.7);backdrop-filter:blur(3px)}
+  #ov.show{display:grid}
+  .panel{background:#0e131f;border:1px solid #1d2942;padding:30px 38px;border-radius:18px;text-align:center}
+  .panel .e{font-size:60px}.panel h3{margin:8px 0 6px}.panel p{color:#9fb4d4;margin:0 0 16px}
+  .panel button{background:linear-gradient(135deg,#2ba6ff,#1486e8);color:#fff;border:none;padding:12px 28px;
+    border-radius:24px;font-weight:800;cursor:pointer}
+  .hintbar{text-align:center;font-size:12px;color:#9fb4d4;margin-top:8px}
+  @media(max-width:680px){:root{--cardW:13vw;--cardH:18vw}.bar .title span.t{display:none}}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="title">🃏 <span class="t">Paciência</span></div>
+    <div class="stat">⏱ <span id="time">0:00</span></div>
+    <div class="stat">🎯 <span id="moves">0</span></div>
+    <button class="alt" id="undo">↩ Desfazer</button>
+    <button class="alt" id="auto">⚡ Auto</button>
+    <button id="new">+ Novo jogo</button>
+  </div>
+
+  <div id="board">
+    <div class="row top-row">
+      <div id="stock" class="slot"></div>
+      <div id="waste" class="slot"></div>
+      <div class="slot" style="visibility:hidden"></div>
+      <div id="f0" class="slot fdn"></div>
+      <div id="f1" class="slot fdn"></div>
+      <div id="f2" class="slot fdn"></div>
+      <div id="f3" class="slot fdn"></div>
+    </div>
+    <div id="tableau"></div>
+    <div class="hintbar">Clique numa carta e depois no destino · clique duplo envia pra base · clique no monte pra comprar</div>
+  </div>
+
+  <div id="ov"><div class="panel"><div class="e">🏆</div><h3>Você venceu!</h3>
+    <p id="wp">Parabéns!</p><button onclick="newGame()">Jogar de novo</button></div></div>
+
+<script>
+const SUITS=['♠','♥','♦','♣'];          // 0♠ 1♥ 2♦ 3♣
+const RANKS=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const isRed=s=>s===1||s===2;
+let stock,waste,fnd,tab,sel,moves,history,timer,startT,won;
+
+function deck(){const d=[];for(let s=0;s<4;s++)for(let r=1;r<=13;r++)d.push({r,s,up:false});return d;}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function newGame(){
+  const d=shuffle(deck());
+  tab=[[],[],[],[],[],[],[]]; fnd=[[],[],[],[]];
+  for(let c=0;c<7;c++)for(let k=0;k<=c;k++){const card=d.pop();card.up=(k===c);tab[c].push(card);}
+  stock=d; stock.forEach(c=>c.up=false); waste=[];
+  sel=null; moves=0; won=false; history=[];
+  startT=Date.now(); document.getElementById('ov').classList.remove('show');
+  if(timer)clearInterval(timer);
+  timer=setInterval(()=>{const s=Math.floor((Date.now()-startT)/1000);
+    document.getElementById('time').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');},500);
+  render();
+}
+window.newGame=newGame;
+
+function snapshot(){return JSON.stringify({stock,waste,fnd,tab,moves});}
+function pushHist(){history.push(snapshot()); if(history.length>200)history.shift();}
+function undo(){if(!history.length)return;const s=JSON.parse(history.pop());
+  stock=s.stock;waste=s.waste;fnd=s.fnd;tab=s.tab;moves=s.moves;sel=null;render();}
+
+function getPile(id){
+  if(id==='stock')return stock; if(id==='waste')return waste;
+  if(id[0]==='f')return fnd[+id[1]]; if(id[0]==='t')return tab[+id.slice(1)]; return null;
+}
+function color(c){return isRed(c.s)?'r':'b';}
+function validRun(cards){for(let i=1;i<cards.length;i++){
+  if(cards[i].r!==cards[i-1].r-1||color(cards[i])===color(cards[i-1]))return false;}return true;}
+function fdnAccepts(f,c){if(!f.length)return c.r===1;const t=f[f.length-1];return t.s===c.s&&c.r===t.r+1;}
+function tabAccepts(t,c){if(!t.length)return c.r===13;const top=t[t.length-1];
+  return top.r===c.r+1&&color(top)!==color(c);}
+
+function drawStock(){
+  pushHist();
+  if(stock.length){const c=stock.pop();c.up=true;waste.push(c);}
+  else{while(waste.length){const c=waste.pop();c.up=false;stock.push(c);}}
+  moves++; sel=null; render();
+}
+
+function movingCards(s){const p=getPile(s.pile);return p.slice(s.idx);}
+function canMove(s,destId){
+  if(destId===s.pile)return false;
+  const cards=movingCards(s); const dest=getPile(destId);
+  if(destId[0]==='f')return cards.length===1&&fdnAccepts(dest,cards[0]);
+  if(destId[0]==='t')return validRun(cards)&&tabAccepts(dest,cards[0]);
+  return false;
+}
+function doMove(s,destId){
+  pushHist();
+  const src=getPile(s.pile); const cards=src.splice(s.idx); getPile(destId).push(...cards);
+  if(s.pile[0]==='t'&&src.length&&!src[src.length-1].up)src[src.length-1].up=true; // vira a de baixo
+  moves++; sel=null; render(); checkWin();
+}
+function autoToFoundation(card,pileId,idx){
+  for(let f=0;f<4;f++){if(fdnAccepts(fnd[f],card)){doMove({pile:pileId,idx},'f'+f);return true;}}
+  return false;
+}
+
+function clickCard(pileId,idx){
+  if(pileId==='stock'){drawStock();return;}
+  const pile=getPile(pileId);
+  if(sel){ // tentar mover seleção pra cá
+    if(canMove(sel,pileId)){doMove(sel,pileId);return;}
+  }
+  // selecionar (só carta virada pra cima)
+  const card=pile[idx];
+  if(card&&card.up){sel={pile:pileId,idx}; render();}
+  else if(sel){sel=null;render();}
+}
+function dblCard(pileId,idx){
+  const pile=getPile(pileId); const card=pile[idx];
+  if(!card||!card.up||idx!==pile.length-1)return;          // só a carta do topo
+  if(autoToFoundation(card,pileId,idx))return;
+  sel=null; render();
+}
+function clickEmpty(destId){ if(sel&&canMove(sel,destId))doMove(sel,destId); else {sel=null;render();} }
+
+function autoFinish(){
+  // tenta mover topos (waste + colunas) pras bases, repetidamente
+  let moved=true, guard=0;
+  function step(){
+    moved=false;
+    if(waste.length&&autoToFoundation(waste[waste.length-1],'waste',waste.length-1))moved=true;
+    else for(let c=0;c<7;c++){const t=tab[c];
+      if(t.length&&autoToFoundation(t[t.length-1],'t'+c,t.length-1)){moved=true;break;}}
+    guard++;
+    if(moved&&guard<200&&!won)setTimeout(step,90);
+  }
+  step();
+}
+
+function checkWin(){
+  if(fnd.reduce((a,f)=>a+f.length,0)===52){won=true;clearInterval(timer);
+    document.getElementById('wp').textContent=`Resolvido em ${document.getElementById('time').textContent} e ${moves} jogadas! 🎉`;
+    document.getElementById('ov').classList.add('show');}
+}
+
+/* ---------- Render ---------- */
+function cardEl(c,pileId,idx,top){
+  const e=document.createElement('div');
+  e.className='card '+(c.up?'face':'back');
+  if(c.up){
+    const col=isRed(c.s)?'red':'black';
+    e.innerHTML=`<div class="r tl ${col}">${RANKS[c.r]}<br>${SUITS[c.s]}</div>
+      <div class="big ${col}">${SUITS[c.s]}</div>
+      <div class="r br ${col}">${RANKS[c.r]}<br>${SUITS[c.s]}</div>`;
+  }
+  if(sel&&sel.pile===pileId&&idx>=sel.idx)e.classList.add('sel');
+  e.onclick=ev=>{ev.stopPropagation();clickCard(pileId,idx);};
+  e.ondblclick=ev=>{ev.stopPropagation();dblCard(pileId,idx);};
+  return e;
+}
+function render(){
+  // STOCK
+  const st=document.getElementById('stock'); st.className='slot'; st.innerHTML='';
+  if(stock.length){const b=document.createElement('div');b.className='card back';st.appendChild(b);
+    st.onclick=()=>drawStock();}
+  else{st.className='slot empty';st.textContent='↻';st.onclick=()=>drawStock();}
+  // WASTE
+  const wa=document.getElementById('waste'); wa.className='slot'; wa.innerHTML='';
+  if(waste.length){wa.appendChild(cardEl(waste[waste.length-1],'waste',waste.length-1,true));}
+  else{wa.className='slot empty';wa.textContent='';}
+  // FOUNDATIONS
+  for(let f=0;f<4;f++){const el=document.getElementById('f'+f);el.className='slot';el.innerHTML='';
+    const pile=fnd[f];
+    if(pile.length){el.appendChild(cardEl(pile[pile.length-1],'f'+f,pile.length-1,true));}
+    else{el.className='slot empty f';el.textContent=SUITS[f];el.style.color='rgba(255,255,255,.18)';}
+    el.onclick=()=>clickEmpty('f'+f);
+  }
+  // TABLEAU
+  const T=document.getElementById('tableau'); T.innerHTML='';
+  for(let c=0;c<7;c++){
+    const col=document.createElement('div'); col.className='col';
+    const pile=tab[c];
+    col.style.height=Math.max(160,(pile.length-1)*26+120)+'px';
+    if(!pile.length){const e=document.createElement('div');e.className='card empty';e.style.position='absolute';
+      e.onclick=()=>clickEmpty('t'+c);col.appendChild(e);}
+    let y=0;
+    pile.forEach((card,i)=>{const e=cardEl(card,'t'+c,i,i===pile.length-1);
+      e.style.top=y+'px'; col.appendChild(e); y+=card.up?26:13;});
+    T.appendChild(col);
+  }
+  document.getElementById('moves').textContent=moves;
+}
+
+document.getElementById('new').onclick=newGame;
+document.getElementById('undo').onclick=undo;
+document.getElementById('auto').onclick=autoFinish;
+document.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='u')undo();});
+newGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Read(//usr/local/bin/**)",
+      "Bash(command -v brew)"
+    ]
+  }
+}
