@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The King's Decision</title>
+<style>
+  :root{--gold:#e7c15a;--ink:#f3e9d2;--stone:#241c17;--accent:#c9a24a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;font-family:"Georgia","Segoe UI",serif;color:var(--ink);
+    background:#140f0b;-webkit-user-select:none;user-select:none}
+  #game{position:relative;width:100%;height:100%;display:flex;flex-direction:column}
+
+  /* ----- Sala do trono ----- */
+  .hall{position:absolute;inset:0;overflow:hidden;z-index:0;
+    background:linear-gradient(#3a2f25,#241b14 55%,#181109);}
+  .window{position:absolute;top:8%;width:120px;height:200px;border-radius:60px 60px 8px 8px;
+    border:8px solid #1c140d;overflow:hidden;box-shadow:0 0 0 4px #3a2c1d}
+  .window.l{left:10%}.window.r{right:10%}
+  .sky{position:absolute;inset:0;transition:background 2s}
+  .rain{position:absolute;inset:0;opacity:0;background-image:repeating-linear-gradient(105deg,rgba(180,200,255,.25) 0 1px,transparent 1px 7px);
+    animation:rain .5s linear infinite}
+  @keyframes rain{to{background-position:0 40px}}
+  .banner{position:absolute;top:0;width:90px;height:230px;background:linear-gradient(#7a1f2b,#4a0f18);
+    clip-path:polygon(0 0,100% 0,100% 86%,50% 100%,0 86%);box-shadow:0 6px 20px rgba(0,0,0,.5);
+    transform-origin:top center;animation:sway 5s ease-in-out infinite}
+  .banner.l{left:24%}.banner.r{right:24%;animation-delay:1.2s}
+  .banner::after{content:"⚜";position:absolute;top:60px;left:0;right:0;text-align:center;font-size:42px;color:var(--gold)}
+  @keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg)}}
+  .torch{position:absolute;width:14px;height:46px;background:#2a1a0e;border-radius:4px}
+  .torch::before{content:"";position:absolute;top:-26px;left:-9px;width:32px;height:36px;border-radius:50%;
+    background:radial-gradient(circle at 50% 70%,#fff3b0,#ff9d2f 45%,#ff5a1f 70%,transparent 75%);
+    filter:blur(1px);animation:flick .12s infinite alternate}
+  .torch.l{left:16%;top:40%}.torch.r{right:16%;top:40%}
+  @keyframes flick{from{transform:scale(1) translateY(0);opacity:.92}to{transform:scale(1.12) translateY(-2px);opacity:1}}
+  .throne{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);font-size:120px;opacity:.22;filter:grayscale(.3)}
+  .floor{position:absolute;bottom:0;left:0;right:0;height:26%;background:linear-gradient(#2a201600,#100b07);}
+
+  /* ----- Topo: atributos ----- */
+  .stats{position:relative;z-index:3;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+    padding:12px 10px 6px;background:linear-gradient(rgba(10,7,4,.85),transparent)}
+  .stat{width:96px;background:rgba(20,14,9,.7);border:1px solid #4a3a24;border-radius:12px;padding:7px 8px;text-align:center}
+  .stat .top{display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;color:#d9c79a;font-weight:700}
+  .stat .bar{height:7px;background:#000;border-radius:6px;margin-top:5px;overflow:hidden}
+  .stat .bar i{display:block;height:100%;border-radius:6px;transition:width .5s ease,background .3s}
+  .stat.flash{animation:flash .5s}
+  @keyframes flash{0%,100%{box-shadow:none}50%{box-shadow:0 0 16px var(--gold)}}
+  .day{position:relative;z-index:3;text-align:center;color:var(--gold);font-weight:700;letter-spacing:1px;margin-top:2px;font-size:14px}
+
+  /* ----- Personagem + diálogo ----- */
+  .stage{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:0 18px 18px}
+  .actor{display:flex;flex-direction:column;align-items:center;transform:translateX(-140%);opacity:0}
+  .actor.in{animation:walkin .7s ease forwards}
+  .actor.bow{animation:bow .5s ease}
+  @keyframes walkin{to{transform:translateX(0);opacity:1}}
+  @keyframes bow{30%{transform:translateY(8px) rotate(-2deg)}60%{transform:translateY(8px) rotate(-2deg)}100%{transform:none}}
+  .portrait{width:150px;height:150px;border-radius:18px;display:grid;place-items:center;font-size:84px;position:relative;overflow:hidden;
+    border:3px solid var(--accent);box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 30px rgba(201,162,74,.25)}
+  .portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .who{margin-top:10px;text-align:center}
+  .who b{font-size:20px;color:#fff}
+  .who small{display:block;color:var(--gold);font-size:12px;letter-spacing:1px;text-transform:uppercase}
+  .bubble{max-width:560px;margin:14px auto 0;background:rgba(247,237,214,.96);color:#2a2114;border-radius:16px;
+    padding:16px 20px;font-size:17px;line-height:1.5;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5);
+    position:relative;opacity:0}
+  .bubble.show{animation:fadeUp .35s ease forwards}
+  .bubble::before{content:"";position:absolute;top:-12px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-bottom-color:rgba(247,237,214,.96)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .reply{min-height:22px;margin-top:10px;text-align:center;color:#e7d6a8;font-style:italic;font-size:15px;opacity:0;transition:.3s}
+  .reply.show{opacity:1}
+
+  /* ----- Escolhas ----- */
+  .choices{position:relative;z-index:3;display:flex;gap:16px;justify-content:center;padding:6px 18px 22px}
+  .choice{flex:1;max-width:240px;padding:16px;border:none;border-radius:16px;cursor:pointer;font-family:inherit;
+    font-weight:800;font-size:20px;color:#fff;transition:transform .12s,box-shadow .15s;position:relative}
+  .choice.no{background:linear-gradient(135deg,#8a2b2b,#5e1414)}
+  .choice.yes{background:linear-gradient(135deg,#2f7d4a,#155e2f)}
+  .choice:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.5)}
+  .choice .hint{display:flex;gap:7px;justify-content:center;margin-top:8px;min-height:20px;font-size:15px;opacity:.95}
+  .choice .hint span.up{color:#bfffce}.choice .hint span.dn{color:#ffc4c4}
+
+  .bar-top{position:absolute;top:10px;right:12px;z-index:6;display:flex;gap:8px}
+  .mini{background:rgba(20,14,9,.7);border:1px solid #4a3a24;color:#e7d6a8;border-radius:10px;padding:8px 11px;cursor:pointer;font-size:13px;font-weight:700}
+  .mini:hover{border-color:var(--gold)}
+
+  /* ----- Telas ----- */
+  .screen{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:30px;background:radial-gradient(800px 500px at 50% 20%,rgba(60,45,25,.6),rgba(8,5,3,.96))}
+  .screen.show{display:flex;animation:fadeUp .4s ease}
+  .screen h1{font-size:46px;color:var(--gold);letter-spacing:1px;text-shadow:0 4px 20px rgba(0,0,0,.6);margin-bottom:6px}
+  .screen .crown{font-size:80px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.6));animation:floaty 4s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  .screen p{max-width:560px;color:#e7d6a8;font-size:17px;line-height:1.6;margin:14px 0}
+  .screen .btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+  .pbtn{background:linear-gradient(135deg,var(--gold),#a9842f);color:#2a1d06;border:none;padding:14px 30px;
+    border-radius:26px;font-weight:800;font-size:16px;cursor:pointer;font-family:inherit}
+  .pbtn.alt{background:rgba(255,255,255,.1);color:#e7d6a8;border:1px solid #4a3a24}
+  .pbtn:hover{filter:brightness(1.08)}
+  .achv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;max-width:560px;margin-top:16px;width:100%}
+  .ac{background:rgba(20,14,9,.7);border:1px solid #4a3a24;border-radius:12px;padding:12px;opacity:.4}
+  .ac.on{opacity:1;border-color:var(--gold);box-shadow:0 0 16px rgba(201,162,74,.25)}
+  .ac .e{font-size:28px}.ac b{display:block;font-size:13px;margin-top:4px}
+  .meta-line{color:#bba; font-size:13px;margin-top:10px}
+
+  .toast{position:absolute;top:70px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:30;
+    background:rgba(20,14,9,.95);border:1px solid var(--gold);color:#fff;padding:10px 18px;border-radius:14px;font-weight:700;
+    opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(max-width:560px){
+    .stat{width:30%}
+    .portrait{width:122px;height:122px;font-size:60px}
+    .who b{font-size:17px}
+    .bubble{font-size:15px;padding:13px 16px;margin-top:10px}
+    .choice{font-size:18px;padding:13px}
+    .choice .hint{display:none}
+    .screen h1{font-size:30px}
+    .banner{width:62px;height:160px}.banner.l{left:18%}.banner.r{right:18%}
+    .window{width:84px;height:140px}
+    .stage{padding:0 12px 12px}
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div class="hall">
+    <div class="window l"><div class="sky" id="skyL"></div><div class="rain" id="rainL"></div></div>
+    <div class="window r"><div class="sky" id="skyR"></div><div class="rain" id="rainR"></div></div>
+    <div class="banner l"></div><div class="banner r"></div>
+    <div class="torch l"></div><div class="torch r"></div>
+    <div class="throne">🪑</div>
+    <div class="floor"></div>
+  </div>
+
+  <div class="bar-top">
+    <button class="mini" id="muteBtn">🔊</button>
+    <button class="mini" id="menuBtn">☰ Menu</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="day" id="day">Dia 1 · Primavera</div>
+
+  <div class="stage">
+    <div class="actor" id="actor">
+      <div class="portrait" id="portrait"></div>
+      <div class="who"><b id="cname"></b><small id="crole"></small></div>
+    </div>
+    <div class="bubble" id="bubble"></div>
+    <div class="reply" id="reply"></div>
+  </div>
+
+  <div class="choices">
+    <button class="choice no" id="btnNo">NÃO<div class="hint" id="hintNo"></div></button>
+    <button class="choice yes" id="btnYes">SIM<div class="hint" id="hintYes"></div></button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Título -->
+  <div class="screen show" id="title">
+    <div class="crown">👑</div>
+    <h1>The King's Decision</h1>
+    <p>Vós sois o novo soberano. A cada dia, súditos chegam ao trono com pedidos, dilemas e ameaças.<br>
+       <b>SIM</b> ou <b>NÃO</b>. Cada escolha molda o destino do reino.</p>
+    <div class="btns">
+      <button class="pbtn" id="btnNew">⚔️ Novo Reinado</button>
+      <button class="pbtn alt" id="btnContinue" style="display:none">📜 Continuar</button>
+      <button class="pbtn alt" id="btnAchv">🏆 Conquistas</button>
+    </div>
+    <div class="meta-line" id="metaLine"></div>
+  </div>
+
+  <!-- Fim -->
+  <div class="screen" id="ending">
+    <div class="crown" id="endIcon">👑</div>
+    <h1 id="endTitle"></h1>
+    <p id="endText"></p>
+    <div class="meta-line" id="endStats"></div>
+    <div class="btns">
+      <button class="pbtn" id="btnAgain">↻ Novo Reinado</button>
+      <button class="pbtn alt" id="btnMenu2">Menu</button>
+    </div>
+  </div>
+
+  <!-- Conquistas -->
+  <div class="screen" id="achvScreen">
+    <h1>🏆 Conquistas</h1>
+    <div class="achv-grid" id="achvGrid"></div>
+    <div class="btns"><button class="pbtn alt" id="btnAchvBack">Voltar</button></div>
+  </div>
+</div>
+
+<script src="cards.js"></script>
+<script>
+const K=window.KINGDOM, $=id=>document.getElementById(id);
+const SEASONS=["Primavera","Verão","Outono","Inverno"];
+const SAVE="kd_save_v1", META="kd_meta_v1";
+let state, cur, curBranchHint;
+
+// ---------- retrato ilustrado (SVG) p/ cada personagem ----------
+function shade(hex,amt){const n=parseInt((hex||"#7a5a38").slice(1),16);const c=x=>Math.max(0,Math.min(255,x));
+  const r=c((n>>16)+amt),g=c(((n>>8)&255)+amt),b=c((n&255)+amt);return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);}
+function portraitSVG(c){const col=c.color||"#7a5a38";
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'>
+    <defs><linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${shade(col,45)}'/><stop offset='1' stop-color='${shade(col,-85)}'/></linearGradient>
+    <radialGradient id='v' cx='.5' cy='.4' r='.62'><stop offset='.55' stop-color='#000' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.55'/></radialGradient></defs>
+    <rect width='300' height='300' fill='url(#bg)'/>
+    <path d='M28 300 Q55 205 150 200 Q245 205 272 300 Z' fill='${shade(col,-35)}'/>
+    <path d='M100 300 Q150 242 200 300 Z' fill='${shade(col,-62)}'/>
+    <circle cx='150' cy='148' r='66' fill='${shade(col,60)}' opacity='.30'/>
+    <text x='150' y='176' font-size='98' text-anchor='middle'>${c.emoji||'❔'}</text>
+    <rect width='300' height='300' fill='url(#v)'/>
+    <rect x='6' y='6' width='288' height='288' rx='16' fill='none' stroke='#caa24a' stroke-width='4'/></svg>`;
+  return "data:image/svg+xml,"+encodeURIComponent(svg);}
+
+/* ---------- meta (persistente entre partidas) ---------- */
+function loadMeta(){try{return JSON.parse(localStorage[META])||{endings:[],achv:[]}}catch(e){return{endings:[],achv:[]}}}
+function saveMeta(m){localStorage[META]=JSON.stringify(m)}
+let meta=loadMeta();
+
+/* ---------- som ---------- */
+let actx,muted=false;
+function tone(f,d,type="sine",vol=.12){ if(muted)return;
+  try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;
+    g.gain.value=vol;o.connect(g);g.connect(actx.destination);const t=actx.currentTime;
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d);}catch(e){}}
+function sfx(kind){
+  if(kind==="yes"){tone(523,.12);setTimeout(()=>tone(784,.14),90);}
+  else if(kind==="no"){tone(330,.12);setTimeout(()=>tone(247,.14),90);}
+  else if(kind==="coin"){[660,880,1046].forEach((f,i)=>setTimeout(()=>tone(f,.1,"square",.08),i*60));}
+  else if(kind==="bad"){tone(150,.4,"sawtooth",.12);}
+  else if(kind==="good"){[523,659,784].forEach((f,i)=>setTimeout(()=>tone(f,.3),i*80));}
+  else if(kind==="end"){[392,523,659,784].forEach((f,i)=>setTimeout(()=>tone(f,.45),i*150));}
+}
+$("muteBtn").onclick=()=>{muted=!muted;$("muteBtn").textContent=muted?"🔇":"🔊";};
+
+/* ---------- estado ---------- */
+function fresh(){return{day:1,stats:{auth:50,gold:50,happy:50,army:50,know:50,faith:50},flags:[],shown:[],sched:[],recent:[]};}
+function save(){localStorage[SAVE]=JSON.stringify(state);}
+function hasSave(){return !!localStorage[SAVE];}
+function view(){return{day:state.day,stats:state.stats,flags:new Set(state.flags)};}
+
+/* ---------- atmosfera (céu/clima por dia) ---------- */
+function updateAmbience(){
+  const phase=state.day%8; // ciclo dia/noite
+  const dayN=phase<4; const t=phase/8;
+  const skyDay=["#a9d4f5","#bfe0f7"], skyNight=["#12203a","#1b2c4d"], dusk=["#e88a4a","#b85c6a"];
+  let cols= phase===3?dusk : (dayN?skyDay:skyNight);
+  const css=`linear-gradient(${cols[0]},${cols[1]})`;
+  $("skyL").style.background=css; $("skyR").style.background=css;
+  const rain=(state.day*7%5===0)?.7:0; $("rainL").style.opacity=rain;$("rainR").style.opacity=rain;
+  $("day").textContent=`Dia ${state.day} · ${SEASONS[Math.floor((state.day-1)/8)%4]}`;
+}
+
+/* ---------- render stats ---------- */
+function colorFor(v){return v<25?"#d6453f":v<50?"#e0a13a":v<75?"#7bc94a":"#4fae8b";}
+function renderStats(flashKeys){
+  $("stats").innerHTML=K.STATS.map(s=>{const v=state.stats[s.k];
+    return `<div class="stat ${flashKeys&&flashKeys.includes(s.k)?'flash':''}" data-k="${s.k}">
+      <div class="top">${s.icon} ${v}</div>
+      <div class="bar"><i style="width:${v}%;background:${colorFor(v)}"></i></div></div>`;}).join("");
+}
+
+/* ---------- seleção de evento ---------- */
+function evById(id){return K.EVENTS.find(e=>e.id===id);}
+function eligible(e,v){return (!e.cond||e.cond(v)) && (!e.once||!state.shown.includes(e.id));}
+function pickEvent(){
+  const v=view();
+  // consequências agendadas
+  state.sched.sort((a,b)=>a.day-b.day);
+  for(let i=0;i<state.sched.length;i++){if(state.sched[i].day<=state.day){
+    const e=evById(state.sched[i].id);
+    if(e && eligible(e,v)){state.sched.splice(i,1);return e;}
+    if(!e || e.once){state.sched.splice(i,1);i--;}
+  }}
+  // pool aleatório
+  let pool=K.EVENTS.filter(e=>!e.scheduledOnly && eligible(e,v) && !state.recent.includes(e.id));
+  if(!pool.length)pool=K.EVENTS.filter(e=>!e.scheduledOnly && eligible(e,v));
+  if(!pool.length)pool=K.EVENTS.filter(e=>!e.scheduledOnly && (!e.cond||e.cond(v)));
+  let tot=pool.reduce((a,e)=>a+(e.weight||1),0),r=Math.random()*tot;
+  for(const e of pool){r-=(e.weight||1);if(r<=0)return e;}
+  return pool[0];
+}
+
+/* ---------- mostrar evento ---------- */
+function hintFor(branch){const e=branch&&branch.e||{};
+  return K.STATS.filter(s=>e[s.k]).map(s=>`<span class="${e[s.k]>0?'up':'dn'}">${s.icon}${e[s.k]>0?'↑':'↓'}</span>`).join("");}
+function showEvent(e){
+  cur=e; state._cur=e.id; const c=K.CHARS[e.char]||{name:"?",role:"",emoji:"❔",color:"#555"};
+  const src = c.image || portraitSVG(c);
+  $("portrait").style.background=`linear-gradient(135deg,${c.color},#1c140d)`;
+  $("portrait").innerHTML=`<img src="${src}" onerror="this.style.display='none'"><span>${c.emoji}</span>`;
+  $("cname").textContent=c.name; $("crole").textContent=c.role;
+  $("bubble").classList.remove("show"); $("reply").classList.remove("show"); $("reply").textContent="";
+  $("hintYes").innerHTML=hintFor(e.yes); $("hintNo").innerHTML=hintFor(e.no);
+  const a=$("actor"); a.classList.remove("in","bow"); void a.offsetWidth; a.classList.add("in");
+  setTimeout(()=>{a.classList.add("bow");},700);
+  setTimeout(()=>{$("bubble").textContent=e.text;$("bubble").classList.add("show");},1050);
+  setButtons(true); save();
+}
+function setButtons(on){$("btnYes").disabled=!on;$("btnNo").disabled=!on;
+  $("btnYes").style.opacity=on?1:.5;$("btnNo").style.opacity=on?1:.5;}
+
+/* ---------- escolher ---------- */
+function choose(yes){
+  if(!cur)return; setButtons(false);
+  const b = yes? cur.yes : cur.no; sfx(yes?"yes":"no");
+  const flash=[];
+  if(b.e)for(const k in b.e){state.stats[k]=Math.max(0,Math.min(100,state.stats[k]+b.e[k]));flash.push(k);
+    if(k==="gold"&&b.e[k]>0)sfx("coin");}
+  if(b.set)b.set.forEach(f=>{if(!state.flags.includes(f))state.flags.push(f);});
+  if(b.next){const[a,c]=b.next.in; state.sched.push({id:b.next.id,day:state.day+a+Math.floor(Math.random()*(c-a+1))});}
+  if(!state.shown.includes(cur.id))state.shown.push(cur.id);
+  state.recent.push(cur.id); if(state.recent.length>6)state.recent.shift();
+  renderStats(flash);
+  $("reply").textContent=b.r||""; $("reply").classList.add("show");
+  state.day++; updateAmbience();
+  checkAchv();
+  const end=computeEnding();
+  save();
+  if(end){setTimeout(()=>endGame(end),1100);return;}
+  setTimeout(()=>{ const ne=pickEvent(); showEvent(ne); }, 1150);
+}
+
+/* ---------- finais ---------- */
+function computeEnding(){
+  for(const s of K.STATS){const v=state.stats[s.k];
+    if(v<=0)return s.k+"_low"; if(v>=100)return s.k+"_high";}
+  if(state.day>=100)return "legend";
+  if(state.day>=60 && K.STATS.every(s=>state.stats[s.k]>=65))return "golden";
+  return null;
+}
+function endGame(key){
+  const E=K.ENDINGS[key]||{icon:"🏰",title:"Fim de Reinado",text:""};
+  sfx(key==="golden"||key==="legend"||key.endsWith("high")?"good":"bad"); setTimeout(()=>sfx("end"),300);
+  $("endIcon").textContent=E.icon; $("endTitle").textContent=E.title; $("endText").textContent=E.text;
+  $("endStats").textContent=`Reinado de ${state.day} dias.`;
+  if(!meta.endings.includes(key)){meta.endings.push(key);saveMeta(meta);}
+  localStorage.removeItem(SAVE);
+  show("ending");
+}
+
+/* ---------- conquistas ---------- */
+function checkAchv(){const v=view();
+  K.ACHV.forEach(a=>{if(!meta.achv.includes(a.id)&&a.cond(v)){meta.achv.push(a.id);saveMeta(meta);toast(`🏆 Conquista: ${a.name}`);sfx("good");}});}
+function renderAchv(){
+  $("achvGrid").innerHTML=K.ACHV.map(a=>`<div class="ac ${meta.achv.includes(a.id)?'on':''}">
+    <div class="e">${a.icon}</div><b>${a.name}</b></div>`).join("");
+}
+let toastT;
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ---------- telas ---------- */
+function show(id){["title","ending","achvScreen"].forEach(s=>$(s).classList.remove("show"));if(id)$(id).classList.add("show");}
+function startGame(continueSave){
+  state = continueSave && hasSave() ? JSON.parse(localStorage[SAVE]) : fresh();
+  if(!state.recent)state.recent=[];
+  show(null); renderStats(); updateAmbience();
+  if(continueSave && hasSave() && state._cur){ showEvent(evById(state._cur)||pickEvent()); }
+  else showEvent(pickEvent());
+}
+
+/* ---------- bindings ---------- */
+$("btnYes").onclick=()=>choose(true);
+$("btnNo").onclick=()=>choose(false);
+$("btnNew").onclick=()=>startGame(false);
+$("btnContinue").onclick=()=>startGame(true);
+$("btnAgain").onclick=()=>startGame(false);
+$("btnMenu2").onclick=()=>{refreshTitle();show("title");};
+$("menuBtn").onclick=()=>{save();refreshTitle();show("title");};
+$("btnAchv").onclick=()=>{renderAchv();show("achvScreen");};
+$("btnAchvBack").onclick=()=>{refreshTitle();show("title");};
+function refreshTitle(){
+  $("btnContinue").style.display=hasSave()?"":"none";
+  $("metaLine").textContent=`Finais descobertos: ${meta.endings.length}/${Object.keys(K.ENDINGS).length} · Conquistas: ${meta.achv.length}/${K.ACHV.length}`;
+}
+refreshTitle();
+</script>
+</body>
+</html>

@@ -3,3 +3,6 @@
 /tmp
 .vercel
 node_modules
+atenis-games.zip
+server.py
+.atenis_*

@@ -42,7 +42,20 @@
   .panel button{background:linear-gradient(135deg,#2ba6ff,#1486e8);color:#fff;border:none;padding:12px 28px;
     border-radius:24px;font-weight:800;cursor:pointer}
   .hintbar{text-align:center;font-size:12px;color:#9fb4d4;margin-top:8px}
-  @media(max-width:680px){:root{--cardW:13vw;--cardH:18vw}.bar .title span.t{display:none}}
+  @media(max-width:680px){
+    :root{--cardW:12vw;--cardH:16.5vw}
+    .bar{flex-wrap:wrap;gap:6px;padding:8px}
+    .bar .title{font-size:15px;margin-right:8px}
+    .bar .title span.t{display:none}
+    .bar .stat{font-size:11px;padding:5px 9px}
+    .bar button{padding:7px 11px;font-size:12px}
+    #board{padding:0 4px;width:auto}
+    .row{gap:1.5vw}
+    #tableau{gap:1.5vw;margin-top:10px}
+    .card .r{font-size:3.4vw}.card .r.tl{top:3px;left:4px}.card .r.br{bottom:3px;right:4px}
+    .card .big{font-size:8vw}
+    .hintbar{font-size:10px}
+  }
 </style>
 </head>
 <body>
@@ -172,6 +185,8 @@ function autoFinish(){
 
 function checkWin(){
   if(fnd.reduce((a,f)=>a+f.length,0)===52){won=true;clearInterval(timer);
+    try{const k='paciencia_stats',st=JSON.parse(localStorage[k]||'{}');st.wins=(st.wins||0)+1;
+      const t=Math.floor((Date.now()-startT)/1000);if(!st.best||t<st.best)st.best=t;localStorage[k]=JSON.stringify(st);}catch(e){}
     document.getElementById('wp').textContent=`Resolvido em ${document.getElementById('time').textContent} e ${moves} jogadas! 🎉`;
     document.getElementById('ov').classList.add('show');}
 }

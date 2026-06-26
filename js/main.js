@@ -264,7 +264,9 @@ function renderGame() {
 
 function wireGame(g) {
   // launch (lazy iframe)
+  const isMobile = matchMedia("(pointer:coarse)").matches || innerWidth < 820;
   const launch = () => {
+    if (window.Atenis) Atenis.recordPlay(g.id);
     const player = $("#player"), spin = $("#spin");
     spin.classList.add("show");
     const url = g.embed || g.src;
@@ -275,6 +277,13 @@ function wireGame(g) {
     setTimeout(() => spin.classList.remove("show"), 6000); // fallback
     $("#poster").style.display = "none";
     player.appendChild(ifr);
+    // No celular: abre o jogo em TELA CHEIA (ocupa a tela toda) com botão de sair
+    if (isMobile) {
+      player.classList.add("fs"); document.body.classList.add("playing");
+      const x = document.createElement("button"); x.className = "fs-exit"; x.textContent = "✕";
+      x.onclick = (e) => { e.stopPropagation(); player.classList.remove("fs"); document.body.classList.remove("playing"); x.remove(); };
+      player.appendChild(x);
+    }
   };
   $("#poster").addEventListener("click", launch);
   $("#playBtn").addEventListener("click", launch);
