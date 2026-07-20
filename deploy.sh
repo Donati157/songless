@@ -1,33 +1,11 @@
 #!/bin/bash
-# Auto-deploy do Atenis Games pro Netlify (mesmo site, mesma URL).
-# Lê o token de ~/.atenis_netlify_token e o Site ID de ~/.atenis_netlify_site
-# (arquivos privados, fora do git). Uso: ./deploy.sh
+# Deploy do Atenis Games — agora pela VERCEL (auto-deploy a cada push no GitHub).
+# Uso: ./deploy.sh "mensagem do commit"
 set -e
 cd "$(dirname "$0")"
-
-TOKEN="${NETLIFY_AUTH_TOKEN:-$(cat ~/.atenis_netlify_token 2>/dev/null)}"
-SITE_ID="${NETLIFY_SITE_ID:-$(cat ~/.atenis_netlify_site 2>/dev/null)}"
-
-if [ -z "$TOKEN" ] || [ -z "$SITE_ID" ]; then
-  echo "❌ Falta token (~/.atenis_netlify_token) ou Site ID (~/.atenis_netlify_site)."
-  exit 1
-fi
-
-ZIP="/tmp/atenis-deploy.zip"
-rm -f "$ZIP"
-zip -r -q "$ZIP" index.html game.html css js games -x '*.DS_Store'
-
-echo "📦 Enviando para o Netlify (site $SITE_ID)…"
-HTTP=$(curl -s -o /tmp/atenis-deploy-resp.json -w "%{http_code}" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/zip" \
-  --data-binary "@$ZIP" \
-  "https://api.netlify.com/api/v1/sites/$SITE_ID/deploys")
-
-if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
-  URL=$(grep -o '"ssl_url":"[^"]*"' /tmp/atenis-deploy-resp.json | head -1 | cut -d'"' -f4)
-  echo "✅ Publicado! $URL"
-else
-  echo "❌ Falhou (HTTP $HTTP). Resposta:"; cat /tmp/atenis-deploy-resp.json; echo
-  exit 1
-fi
+GIT=/Applications/Xcode.app/Contents/Developer/usr/bin/git   # git do sistema travado por licença Xcode
+MSG="${1:-Atualização do site}"
+$GIT add -A
+$GIT commit -m "$MSG" || echo "(nada novo pra commitar)"
+$GIT push origin main
+echo "✅ Enviado pro GitHub (Donati157/songless) — a Vercel publica automaticamente."
