@@ -342,7 +342,7 @@
 <div class="ov" id="ovCfg"><div class="panel">
   <button class="x" data-close="ovCfg">✕</button>
   <h3>⚙️ Ajustes & Spotify</h3>
-  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v19</span></div>
+  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v20</span></div>
 
   <div id="cfgDisconnected">
     <div id="cfgSteps">
@@ -355,7 +355,8 @@
       <label>Client ID do Spotify</label>
       <input type="text" id="cfgClientId" placeholder="ex.: 5f1c0a2b3d4e..." />
     </div>
-    <div class="row"><button class="pri green" id="spConnect">💚 Conectar com Spotify</button></div>
+    <div class="steps" id="cfgPerfil" style="display:none;margin-bottom:12px"></div>
+    <div class="row"><button class="sec" id="cfgSair" style="display:none">🚪 Sair do perfil</button><button class="pri green" id="spConnect">💚 Conectar com Spotify</button></div>
   </div>
 
   <div id="cfgConnected" style="display:none">
@@ -1205,8 +1206,8 @@ function renderSpotifyUI(){
   // com Client ID embutido, o jogador nunca vê a parte técnica
   const hasCid=!!(SP_CLIENT_ID||localStorage[LSK.cid]);
   $('cfgSteps').style.display=SP_CLIENT_ID?'none':'';
-  $('cfgDisconnected').style.display=conn?'none':'';
-  $('cfgConnected').style.display=conn?'':'none';
+  $('cfgDisconnected').style.display=spConnected()?'none':'';
+  $('cfgConnected').style.display=spConnected()?'':'none';
   $('btnCfg').classList.toggle('green',conn);
   if(conn&&sp.me)$('cfgWho').innerHTML=`Conectado como <b>${esc(sp.me.display_name||sp.me.id)}</b> · conta <b>${sp.me.product==='premium'?'Premium 👑':'Free'}</b>.`+
     (sp.me.product!=='premium'?'<br>Sem Premium o jogo usa previews de 30s (funciona normal!).':'');
@@ -1231,12 +1232,17 @@ $('plLink').addEventListener('keydown',async e=>{
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).classList.remove('show'));
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
 $('btnCfg').onclick=()=>{$('cfgRedirect').textContent=redirectUri();
+  const temPerfil=perfil&&!spConnected();
+  $('cfgPerfil').style.display=temPerfil?'':'none';
+  $('cfgSair').style.display=temPerfil?'':'none';
+  if(temPerfil)$('cfgPerfil').innerHTML='🔑 Jogando como <b>'+perfil.name+'</b> (perfil por senha).';
   $('cfgClientId').value=localStorage[LSK.cid]||'';$('ovCfg').classList.add('show');};
 $('spConnect').onclick=spLogin;
 $('spConnectHome').onclick=spLogin; // opcional: login real do Spotify
 $('btnSenha').onclick=entrarComSenha;
 $('senhaJogador').addEventListener('keydown',e=>{if(e.key==='Enter')entrarComSenha();});
 $('sairPerfil').onclick=sairPerfil;
+$('cfgSair').onclick=()=>{sairPerfil();$('ovCfg').classList.remove('show');};
 $('mixCard').onclick=()=>{selPl=ALLPL;if(mode!=='free')setMode('free');renderPls();};
 $('spCopyList').onclick=async()=>{
   if(!spConnected()||!sp.me){toast('Conecte primeiro.');return;}
@@ -1246,7 +1252,7 @@ $('spCopyList').onclick=async()=>{
   try{await navigator.clipboard.writeText(txt);toast('Copiado! Cola no chat 😉');}
   catch(e){toast(copyLegacy(txt)?'Copiado! Cola no chat 😉':txt.slice(0,80)+'…');}
 };
-$('spLogout').onclick=()=>{spDisconnect();$('ovCfg').classList.remove('show');};
+$('spLogout').onclick=()=>{spDisconnect();if(perfil){perfil=null;delete localStorage.sl_profile;}renderSpotifyUI();renderDailyBadge();$('ovCfg').classList.remove('show');};
 $('swFull').classList.toggle('on',useFull());
 $('swFull').onclick=()=>{localStorage[LSK.full]=useFull()?'0':'1';$('swFull').classList.toggle('on',useFull());
   if(useFull()&&sp.me&&sp.me.product==='premium')initSdk();};
