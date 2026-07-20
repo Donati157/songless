@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "songless",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/private/tmp/claude-502/-Users-davidonati-Documents-Claude-Projects-jogos-songless2/b864ca96-d685-487e-a42a-3ad6784a9d59/scratchpad/serve.py"],
+      "port": 8899
+    }
+  ]
+}

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Campo Minado</title>
+<style>
+  :root{--blue:#4f9dff;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:radial-gradient(1000px 500px at 50% -10%,#16365c,#0a1422 60%,#070d17);
+    color:#eaf2fb;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;user-select:none}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px;flex-wrap:wrap;justify-content:center}
+  .bar .title{font-weight:800;font-size:18px;margin-right:6px}
+  .seg{display:flex;background:rgba(255,255,255,.06);border:1px solid rgba(120,180,255,.2);border-radius:12px;overflow:hidden}
+  .seg button{background:none;border:none;color:#bcd0ec;font-weight:700;font-size:13px;padding:8px 12px;cursor:pointer}
+  .seg button.on{background:linear-gradient(135deg,#2ba6ff,#1486e8);color:#fff}
+  .chip{background:rgba(8,14,22,.7);border:1px solid rgba(120,180,255,.25);border-radius:12px;padding:7px 13px;font-weight:800;font-size:15px;min-width:64px;text-align:center}
+  #reset{font-size:24px;background:rgba(255,255,255,.08);border:1px solid rgba(120,180,255,.25);border-radius:12px;width:46px;height:42px;cursor:pointer}
+  #wrap{padding:0 8px 16px;max-width:100%;overflow:auto}
+  #grid{display:grid;gap:0;border:3px solid #87b541;border-radius:6px;overflow:hidden}
+  .cell{width:var(--cell);height:var(--cell);display:grid;place-items:center;
+    font-weight:900;font-size:calc(var(--cell)*0.52);cursor:pointer;touch-action:manipulation;
+    background:#aad751;border:1px solid rgba(0,0,0,.12)}  /* verde claro + borda */
+  .cell.alt{background:#8ec641}                            /* verde escuro (xadrez bem visível) */
+  .cell:hover{background:#c0e673}
+  .cell.alt:hover{background:#a4d654}
+  .cell:active{filter:brightness(.95)}
+  .cell.rev{background:#e6c8a0;cursor:default}            /* terra claro */
+  .cell.rev.alt{background:#d6b487}                        /* terra escuro */
+  .cell.rev:hover,.cell.rev.alt:hover{filter:none}
+  .cell.flag{background:#aad751}.cell.flag.alt{background:#a2d149}
+  .cell.mine{background:#e57373!important}
+  .cell.boom{background:#e0392b!important;animation:boom .4s}
+  @keyframes boom{0%{transform:scale(1.3)}100%{transform:scale(1)}}
+  .cell.pop{animation:cpop .45s ease both}
+  @keyframes cpop{0%{transform:scale(1)}45%{transform:scale(1.2);filter:brightness(1.25)}100%{transform:scale(1)}}
+  .confetti{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+  .confetti i{position:absolute;top:-24px;border-radius:2px;opacity:.95;animation-name:fall;animation-timing-function:cubic-bezier(.2,.6,.4,1);animation-fill-mode:forwards}
+  @keyframes fall{to{transform:translateY(112vh) rotate(900deg)}}
+  .menu{position:fixed;z-index:50;display:none;gap:8px;padding:8px;
+    background:linear-gradient(180deg,#1a2740,#0e1626);border:1px solid #3a527c;border-radius:999px;
+    box-shadow:0 16px 40px rgba(0,0,0,.55),0 0 0 1px rgba(120,180,255,.06)}
+  .menu.show{display:flex;animation:menuIn .13s ease}
+  @keyframes menuIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+  .menu .ic{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:23px;line-height:1;
+    border:none;cursor:pointer;color:#fff;transition:.12s;box-shadow:0 4px 12px rgba(0,0,0,.35)}
+  .menu .ic:hover{transform:translateY(-2px);filter:brightness(1.12)}
+  .menu .ic:active{transform:scale(.92)}
+  .menu .ic.dig{background:linear-gradient(135deg,#43d97f,#1f9e54)}
+  .menu .ic.flagb{background:linear-gradient(135deg,#e0556b,#b3283e)}
+  .menu .ic.cancel{background:#26344c;border:1px solid #3a4d72;color:#aab8d2;font-size:20px}
+  .hint{color:#8fa3c2;font-size:12px;margin:-4px 0 8px;text-align:center;padding:0 10px}
+  .ov{position:fixed;inset:0;display:none;place-items:center;background:rgba(6,14,26,.72);backdrop-filter:blur(4px);z-index:60}
+  .ov.show{display:grid}
+  .panel{background:#0e1626;border:1px solid #1f2942;border-radius:18px;padding:28px 34px;text-align:center}
+  .panel .e{font-size:56px}.panel h3{margin:6px 0 4px;font-size:24px}.panel p{color:#9fb4d4;margin:0 0 16px}
+  .panel button{background:linear-gradient(135deg,#2ba6ff,#1486e8);color:#fff;border:none;padding:12px 28px;border-radius:24px;font-weight:800;cursor:pointer}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="title">💣 Campo Minado</div>
+    <div class="seg" id="diff">
+      <button data-d="0" class="on">Fácil</button>
+      <button data-d="1">Médio</button>
+      <button data-d="2">Difícil</button>
+    </div>
+    <div class="chip">🚩 <span id="mines">0</span></div>
+    <button id="reset">🙂</button>
+    <div class="chip">⏱ <span id="time">0</span></div>
+  </div>
+  <div class="hint">1 clique = menu (Cavar / Bandeira) · clique duplo = cava direto · clique direito = bandeira</div>
+  <div id="wrap"><div id="grid"></div></div>
+
+  <div class="menu" id="menu">
+    <button class="ic dig" id="mDig" title="Cavar">⛏</button>
+    <button class="ic flagb" id="mFlag" title="Bandeira">🚩</button>
+    <button class="ic cancel" id="mCancel" title="Cancelar">✕</button>
+  </div>
+
+  <div class="ov" id="ov"><div class="panel">
+    <div class="e" id="oe">🏆</div><h3 id="ot">Você venceu!</h3><p id="op"></p>
+    <button onclick="start()">Jogar de novo</button>
+  </div></div>
+
+<script>
+const DIFFS=[{c:9,r:9,m:10},{c:16,r:16,m:40},{c:20,r:16,m:70}];
+const NUMCOL=['','#1976d2','#388e3c','#d32f2f','#7b1fa2','#ff8f00','#0097a7','#424242','#9e9e9e'];
+const $=id=>document.getElementById(id);
+let D=0, cols, rows, mineN, board, revealed, started, over, t0, timer, flags;
+
+function start(){
+  D=DIFFS[curD]; cols=D.c; rows=D.r; mineN=D.m;
+  board=[]; revealed=0; started=false; over=false; flags=0;
+  clearInterval(timer); $('time').textContent='0'; $('reset').textContent='🙂'; $('ov').classList.remove('show'); hideMenu();
+  for(let r=0;r<rows;r++){board[r]=[];for(let c=0;c<cols;c++)board[r][c]={mine:false,rev:false,flag:false,n:0,alt:(r+c)%2};}
+  $('mines').textContent=mineN;
+  // tamanho da célula pra caber na tela
+  const maxW=Math.min(innerWidth-24,560), maxH=innerHeight-150;
+  const cell=Math.max(20,Math.floor(Math.min(maxW/cols,maxH/rows,40)));
+  const g=$('grid'); g.style.gridTemplateColumns=`repeat(${cols},1fr)`; g.style.setProperty('--cell',cell+'px');
+  document.documentElement.style.setProperty('--cell',cell+'px');
+  g.innerHTML='';
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const e=document.createElement('div'); e.className='cell'+((r+c)%2?' alt':''); e.dataset.r=r; e.dataset.c=c;
+    board[r][c].el=e;
+    e.addEventListener('click',()=>onClick(r,c));
+    e.addEventListener('contextmenu',ev=>{ev.preventDefault();toggleFlag(r,c);});
+    g.appendChild(e);
+  }
+}
+let curD=0;
+$('diff').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  [...$('diff').children].forEach(x=>x.classList.remove('on'));b.classList.add('on');curD=+b.dataset.d;start();});
+$('reset').onclick=start;
+
+function plant(sr,sc){ // mina depois do 1º clique, evitando o entorno do clique
+  let placed=0;
+  while(placed<mineN){const r=(Math.random()*rows)|0,c=(Math.random()*cols)|0;
+    if(board[r][c].mine)continue; if(Math.abs(r-sr)<=1&&Math.abs(c-sc)<=1)continue;
+    board[r][c].mine=true;placed++;}
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){let n=0;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<rows&&nc>=0&&nc<cols&&board[nr][nc].mine)n++;}
+    board[r][c].n=n;}
+}
+function startTimer(){t0=Date.now();timer=setInterval(()=>$('time').textContent=Math.floor((Date.now()-t0)/1000),250);}
+
+function paint(cell){const b=cell, e=b.el;
+  e.className='cell'+(b.alt?' alt':'')+(b.rev?' rev':'')+(b.flag?' flag':'');
+  if(b.rev){ if(b.mine){e.classList.add('mine');e.textContent='💣';}
+    else if(b.n>0){e.textContent=b.n;e.style.color=NUMCOL[b.n];} else e.textContent=''; }
+  else { e.textContent=b.flag?'🚩':''; e.style.color=''; }
+}
+
+function reveal(r,c){const b=board[r][c]; if(b.rev||b.flag)return;
+  b.rev=true; revealed++; paint(b);
+  if(b.mine){ lose(b); return; }
+  if(b.n===0){ for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<rows&&nc>=0&&nc<cols)reveal(nr,nc);} }
+}
+function dig(r,c){ if(over)return; const b=board[r][c];
+  if(!started){started=true;plant(r,c);startTimer();}
+  if(b.rev){ chord(r,c); return; }
+  reveal(r,c); checkWin();
+}
+function chord(r,c){const b=board[r][c]; if(!b.rev||b.n===0)return;
+  let f=0; for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<rows&&nc>=0&&nc<cols&&board[nr][nc].flag)f++;}
+  if(f===b.n){ for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<rows&&nc>=0&&nc<cols&&!board[nr][nc].flag)reveal(nr,nc);} checkWin(); }
+}
+function toggleFlag(r,c){ if(over)return; const b=board[r][c]; if(b.rev)return;
+  b.flag=!b.flag; flags+=b.flag?1:-1; $('mines').textContent=mineN-flags; paint(b);
+}
+function lose(boom){over=true;clearInterval(timer);$('reset').textContent='😵';boom.el.classList.add('boom');
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const b=board[r][c];if(b.mine&&!b.flag){b.rev=true;paint(b);}}
+  setTimeout(()=>{$('oe').textContent='💥';$('ot').textContent='BOOM!';$('op').textContent='Você pisou numa mina.';$('ov').classList.add('show');},500);
+}
+function checkWin(){ if(over)return;
+  if(revealed===rows*cols-mineN){over=true;clearInterval(timer);$('reset').textContent='😎';
+    const s=Math.floor((Date.now()-t0)/1000);
+    try{const k='minado_stats',st=JSON.parse(localStorage[k]||'{}');st.wins=(st.wins||0)+1;
+      const key='best'+curD; if(!st[key]||s<st[key])st[key]=s; localStorage[k]=JSON.stringify(st);}catch(e){}
+    winAnim();
+    setTimeout(()=>{$('oe').textContent='🏆';$('ot').textContent='Você venceu!';$('op').textContent=`Limpou o campo em ${s}s!`;$('ov').classList.add('show');},1500);}
+}
+function winAnim(){
+  let i=0;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const b=board[r][c];
+    if(b.mine&&!b.flag){b.flag=true;flags++;}              // bandeira automática nas minas
+    paint(b);                                              // (paint reescreve a classe...)
+    b.el.style.animationDelay=((r+c)*30)+'ms'; b.el.classList.add('pop');   // ...então o pop entra depois
+  }
+  $('mines').textContent=mineN-flags;
+  launchConfetti();
+}
+function launchConfetti(){
+  const cor=['#ff4d6d','#ffd23a','#4f9dff','#3ed47a','#b06bff','#ff8f3a','#2ee6c9'];
+  const box=document.createElement('div'); box.className='confetti';
+  for(let k=0;k<120;k++){const p=document.createElement('i');
+    p.style.left=Math.random()*100+'%';
+    p.style.background=cor[(Math.random()*cor.length)|0];
+    p.style.width=(6+Math.random()*8)+'px'; p.style.height=(9+Math.random()*9)+'px';
+    p.style.animationDuration=(2+Math.random()*2.4)+'s';
+    p.style.animationDelay=(Math.random()*0.9)+'s';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(()=>box.remove(),5400);
+}
+
+/* ---- interação: 1 clique = menu, 2 cliques = cava ---- */
+let ct=null, cc=null;
+function onClick(r,c){ if(over)return;
+  if(ct && cc && cc.r===r && cc.c===c){ clearTimeout(ct);ct=null;cc=null;hideMenu(); dig(r,c); return; } // duplo
+  if(ct)clearTimeout(ct); cc={r,c};
+  ct=setTimeout(()=>{ ct=null; const b=board[r][c];
+    if(b.rev) chord(r,c); else showMenu(r,c); }, 240);
+}
+function showMenu(r,c){const b=board[r][c]; const rc=b.el.getBoundingClientRect();
+  const m=$('menu');
+  $('mDig').onclick=()=>{hideMenu();dig(r,c);};
+  $('mFlag').onclick=()=>{hideMenu();toggleFlag(r,c);};
+  $('mCancel').onclick=hideMenu;
+  m.classList.add('show');
+  let x=rc.left+rc.width/2-m.offsetWidth/2, y=rc.bottom+6;
+  if(y+m.offsetHeight>innerHeight-6)y=rc.top-m.offsetHeight-6;
+  x=Math.max(6,Math.min(x,innerWidth-m.offsetWidth-6));
+  m.style.left=x+'px'; m.style.top=y+'px';
+}
+function hideMenu(){$('menu').classList.remove('show');}
+document.addEventListener('click',e=>{if(!e.target.closest('.menu')&&!e.target.closest('.cell'))hideMenu();});
+addEventListener('resize',()=>{if(!started)start();});
+
+start();
+</script>
+</body>
+</html>

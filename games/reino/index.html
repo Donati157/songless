@@ -287,9 +287,9 @@ function hintFor(branch){const e=branch&&branch.e||{};
   return K.STATS.filter(s=>e[s.k]).map(s=>`<span class="${e[s.k]>0?'up':'dn'}">${s.icon}${e[s.k]>0?'↑':'↓'}</span>`).join("");}
 function showEvent(e){
   cur=e; state._cur=e.id; const c=K.CHARS[e.char]||{name:"?",role:"",emoji:"❔",color:"#555"};
-  const src = c.image || portraitSVG(c);
-  $("portrait").style.background=`linear-gradient(135deg,${c.color},#1c140d)`;
-  $("portrait").innerHTML=`<img src="${src}" onerror="this.style.display='none'"><span>${c.emoji}</span>`;
+  // retrato robusto: emoji em DOM (nunca some). Se houver foto real (c.image), usa-a por cima.
+  $("portrait").style.background=`radial-gradient(circle at 50% 36%, ${shade(c.color,35)}, ${shade(c.color,-82)})`;
+  $("portrait").innerHTML=(c.image?`<img src="${c.image}" onerror="this.remove()">`:"")+`<span>${c.emoji}</span>`;
   $("cname").textContent=c.name; $("crole").textContent=c.role;
   $("bubble").classList.remove("show"); $("reply").classList.remove("show"); $("reply").textContent="";
   $("hintYes").innerHTML=hintFor(e.yes); $("hintNo").innerHTML=hintFor(e.no);

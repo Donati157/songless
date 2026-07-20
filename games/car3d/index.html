@@ -9,15 +9,21 @@
   #app{position:relative;width:100%;height:100%}
   canvas{display:block}
   .speedfx{position:absolute;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .15s;background:radial-gradient(ellipse 62% 62% at center,transparent 38%,rgba(0,0,0,.62) 100%)}
+  #flash{position:absolute;inset:0;pointer-events:none;z-index:4;opacity:0;background:radial-gradient(circle,#fff3b0,#ff5a1a 70%)}
   .hud{position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:center;gap:12px;pointer-events:none;z-index:5}
   .gauge{background:rgba(8,14,22,.62);backdrop-filter:blur(6px);color:#dff0ff;border:1px solid rgba(120,180,255,.25);padding:8px 16px;border-radius:14px;font-weight:800;text-align:center;min-width:84px}
   .gauge small{display:block;font-size:10px;letter-spacing:1px;color:#8fb6e0;font-weight:700}
   .gauge b{font-size:24px}
   .rpm{position:absolute;left:50%;transform:translateX(-50%);bottom:84px;width:240px;height:8px;background:rgba(8,14,22,.6);border-radius:6px;overflow:hidden;z-index:5}
+  .dmg{position:absolute;left:50%;transform:translateX(-50%);top:114px;width:200px;height:9px;background:rgba(8,14,22,.6);border:1px solid rgba(120,180,255,.25);border-radius:6px;overflow:hidden;z-index:5;pointer-events:none}
+  .dmg i{display:block;height:100%;width:0;background:linear-gradient(90deg,#33d17a,#e0a13a 60%,#ff3b30);transition:width .1s}
+  .dmg::before{content:"DANO";position:absolute;left:6px;top:-15px;font-size:9px;letter-spacing:1px;color:#bcd6f5;font-weight:800}
   .rpm i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4fae8b,#e0a13a 70%,#d6453f);transition:width .08s}
   .top{position:absolute;top:14px;left:0;right:0;text-align:center;color:#dff0ff;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.5);pointer-events:none;z-index:5}
   .keys{position:absolute;top:46px;left:0;right:0;text-align:center;color:#bcd6f5;font-size:13px;opacity:.85;pointer-events:none;z-index:5}
   #status{position:absolute;top:74px;left:0;right:0;text-align:center;font-weight:900;font-size:18px;color:#ff5a6a;text-shadow:0 2px 8px rgba(0,0,0,.6);pointer-events:none;opacity:0;transition:.2s;z-index:5}
+  #luck{position:absolute;top:138px;left:0;right:0;text-align:center;font-weight:900;font-size:20px;color:#ffd23a;text-shadow:0 2px 8px rgba(0,0,0,.7);pointer-events:none;opacity:0;transition:.2s;z-index:6}
+  #luck.show{opacity:1}
   #status.show{opacity:1}
   #msg{position:absolute;inset:0;display:grid;place-items:center;color:#cfe2ff;text-align:center;padding:30px;z-index:9}
   #msg .card{background:#0e131f;border:1px solid #233049;border-radius:16px;padding:26px 30px;max-width:380px}
@@ -46,9 +52,11 @@
 <body>
 <div id="app">
   <div class="speedfx" id="speedfx"></div>
+  <div id="flash"></div>
   <div class="top">🏙️ City Drive 3D · física real</div>
   <div class="keys">W/↑ acelera · S/↓ freia/ré · A·D vira · Espaço = freio de mão (drift) · contra-esterce pra segurar!</div>
   <div id="status"></div>
+  <div id="luck"></div>
   <button class="gear" id="gearBtn" title="Configurações">⚙️</button>
   <div class="settings" id="settings">
     <div class="panel">
@@ -57,7 +65,7 @@
       <button class="opt" id="invDriveBtn">🔄 Inverter frente/ré</button>
       <button class="opt" id="invSteerBtn">🔄 Inverter direção (A/D)</button>
       <button class="opt" id="nightBtn">🌙 Modo noite: OFF</button>
-      <button class="opt" id="policeBtn">🚓 Modo polícia: OFF</button>
+      <button class="opt on" id="policeBtn">🚓 Modo polícia: ON</button>
       <button class="opt" id="muteBtn">🔊 Som: OFF</button>
       <button class="opt" id="resetBtn">↺ Resetar carro</button>
       <button class="opt close" id="closeBtn">✓ Fechar</button>
@@ -69,6 +77,7 @@
     <div class="gauge"><small>SUPERFÍCIE</small><b id="surf">—</b></div>
   </div>
   <div class="rpm"><i id="rpmBar"></i></div>
+  <div class="dmg"><i id="dmgBar"></i></div>
   <div class="touch l"><div class="tbtn" id="bl">◀</div><div class="tbtn" id="br">▶</div></div>
   <div class="touch r"><div class="tbtn" id="bb">▼</div><div class="tbtn" id="bf">▲</div></div>
   <div class="touch c"><div class="tbtn wide" id="bh">✋ DRIFT</div></div>
@@ -143,11 +152,12 @@ try{
     const b=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d),[m,m,roofMat,roofMat,m,m]);b.position.set(x,hh/2,z);b.castShadow=true;b.receiveShadow=true;scene.add(b);
     const body=new CANNON.Body({mass:0,material:groundMat});body.addShape(new CANNON.Box(new CANNON.Vec3(w/2,hh/2,d/2)));body.position.set(x,hh/2,z);world.addBody(body);}
   const trunkMat=new THREE.MeshStandardMaterial({color:0x6b4a2b}),leafMat=new THREE.MeshStandardMaterial({color:0x2f7d3a});
+  const obstacles=[];   // árvores e postes para colisão (com dano)
   function tree(x,z){const g=new THREE.Group();const t=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.7,4,6),trunkMat);t.position.y=2;t.castShadow=true;g.add(t);
-    const l=new THREE.Mesh(new THREE.ConeGeometry(2.6,5.5,8),leafMat);l.position.y=6.2;l.castShadow=true;g.add(l);g.position.set(x,0,z);scene.add(g);}
+    const l=new THREE.Mesh(new THREE.ConeGeometry(2.6,5.5,8),leafMat);l.position.y=6.2;l.castShadow=true;g.add(l);g.position.set(x,0,z);scene.add(g);obstacles.push({x,z,r:1.2});}
   const poleMat=new THREE.MeshStandardMaterial({color:0x2b3038,metalness:0.6,roughness:0.5}), lampHeads=[];
   function lamp(x,z){const p=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.3,8,6),poleMat);p.position.set(x,4,z);p.castShadow=true;scene.add(p);
-    const h=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.5,0.8),new THREE.MeshStandardMaterial({color:0xfff2c0,emissive:0xffeaa0,emissiveIntensity:0.4}));h.position.set(x,8,z);scene.add(h);lampHeads.push(h.material);}
+    const h=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.5,0.8),new THREE.MeshStandardMaterial({color:0xfff2c0,emissive:0xffeaa0,emissiveIntensity:0.4}));h.position.set(x,8,z);scene.add(h);lampHeads.push(h.material);obstacles.push({x,z,r:0.7});}
   const blockGap=SP-RW, margin=6;
   for(let i=0;i<N-1;i++)for(let j=0;j<N-1;j++){const cx=(roadPos[i]+roadPos[i+1])/2, cz=(roadPos[j]+roadPos[j+1])/2, half=(blockGap-margin)/2;
     const distC=Math.max(Math.abs(cx),Math.abs(cz))/HALF;
@@ -160,7 +170,7 @@ try{
   function trafficLight(x,z){const g=new THREE.Group();const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.3,7,6),poleMat);pole.position.y=3.5;g.add(pole);
     const box=new THREE.Mesh(new THREE.BoxGeometry(0.9,2.4,0.6),new THREE.MeshStandardMaterial({color:0x14181f}));box.position.y=7;g.add(box);
     const mk=(c,y)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(0.27,10,10),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.2}));m.position.set(0,y,0.32);g.add(m);return m;};
-    const r=mk(0xff3b30,7.7),y=mk(0xffcc00,7.0),gr=mk(0x32d65a,6.3);g.position.set(x,0,z);scene.add(g);lights.push({r,y,gr});}
+    const r=mk(0xff3b30,7.7),y=mk(0xffcc00,7.0),gr=mk(0x32d65a,6.3);g.position.set(x,0,z);scene.add(g);lights.push({r,y,gr});obstacles.push({x,z,r:0.7});}
   roadPos.forEach((z,zi)=>roadPos.forEach((x,xi)=>{lamp(x+RW/2+2,z+RW/2+2);if((xi+zi)%2===0)trafficLight(x-RW/2-1.5,z-RW/2-1.5);}));
 
   // ---------- marcas/fumaça ----------
@@ -169,7 +179,7 @@ try{
   function dropSkid(x,z,a){const m=skids[skidIdx];m.position.set(x,0.06,z);m.rotation.set(-Math.PI/2,0,-a);m.visible=true;skidIdx=(skidIdx+1)%skids.length;}
   const puffTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');const g=x.createRadialGradient(32,32,2,32,32,30);g.addColorStop(0,'rgba(225,225,230,.9)');g.addColorStop(1,'rgba(225,225,230,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
   const puffs=[];for(let i=0;i<36;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,opacity:0,depthWrite:false}));s.visible=false;scene.add(s);puffs.push({s,life:0});}
-  function puff(x,y,z){for(const p of puffs){if(p.life<=0){p.s.position.set(x,y,z);p.s.visible=true;p.life=1;p.s.material.opacity=.5;p.s.scale.set(1.6,1.6,1);return;}}}
+  function puff(x,y,z,col){for(const p of puffs){if(p.life<=0){p.s.position.set(x,y,z);p.s.visible=true;p.life=1;p.s.material.opacity=.5;p.s.material.color.setHex(col===undefined?0xe1e1e6:col);p.s.scale.set(1.6,1.6,1);return;}}}
   function updatePuffs(dt){for(const p of puffs){if(p.life>0){p.life-=dt*1.3;p.s.material.opacity=Math.max(0,p.life*0.5);const s=p.s.scale.x+dt*5;p.s.scale.set(s,s,1);p.s.position.y+=dt*1.8;if(p.life<=0)p.s.visible=false;}}}
 
   // ---------- VEÍCULO (cannon RaycastVehicle) ----------
@@ -230,6 +240,12 @@ try{
     customSlidingRotationalSpeed:-30,useCustomSlidingRotationalSpeed:true};
   [[1.5,0.95],[1.5,-0.95],[-1.5,0.95],[-1.5,-0.95]].forEach(([x,z])=>{wopt.chassisConnectionPointLocal.set(x,-0.1,z);vehicle.addWheel(wopt);wheelMeshes.push(wheelMesh());});
   vehicle.addToWorld(world);
+  // dano ao bater em PRÉDIO (colisão real da física do chassi)
+  chassisBody.addEventListener('collide',(e)=>{
+    const v=Math.abs(e.contact.getImpactVelocityAlongNormal());
+    if(v>4.5){ crashed=true; impact=Math.min(0.7,0.12+v*0.04);
+      if(v>7.5 && fx.shield<=0){ damage=Math.min(100,damage+clamp(v*1.6,5,40)); if(damage>=100)explode(); } }
+  });
 
   // ---------- controles ----------
   const keys={};
@@ -265,12 +281,47 @@ try{
   invSteerBtn.onclick=()=>{steerSign=-steerSign;invSteerBtn.classList.toggle('on',steerSign<0);};
 
   // ---------- polícia (visual) ----------
-  const police=[];let policeOn=false,busted=0;const policeBtn=document.getElementById('policeBtn'),statusEl=document.getElementById('status');
+  const police=[];let policeOn=true,busted=0,wanted=0;const policeBtn=document.getElementById('policeBtn'),statusEl=document.getElementById('status');
+  function spawnPolice(){for(let i=0;i<3;i++){const v=simpleCar(0xeef1f5);scene.add(v.g);
+    const bar=new THREE.Mesh(new THREE.BoxGeometry(1,0.3,1.4),new THREE.MeshStandardMaterial({color:0x2040ff,emissive:0x2040ff,emissiveIntensity:2}));bar.position.set(-0.2,1.3,0);v.g.add(bar);
+    const a=Math.random()*6.283;police.push({v,bar,x:chassisBody.position.x+Math.cos(a)*135,z:chassisBody.position.z+Math.sin(a)*135,h:0,spd:0,flash:0});}}
+  function clearPolice(){police.forEach(p=>scene.remove(p.v.g));police.length=0;}
+  // ON = modo ligado, mas a polícia SÓ aparece se você infringir (velocidade, batida, drift perigoso)
   policeBtn.onclick=()=>{policeOn=!policeOn;policeBtn.textContent='🚓 Polícia: '+(policeOn?'ON':'OFF');policeBtn.classList.toggle('on',policeOn);
-    if(policeOn&&!police.length){for(let i=0;i<3;i++){const v=simpleCar(0xeef1f5);scene.add(v.g);
-      const bar=new THREE.Mesh(new THREE.BoxGeometry(1,0.3,1.4),new THREE.MeshStandardMaterial({color:0x2040ff,emissive:0x2040ff,emissiveIntensity:2}));bar.position.set(-0.2,1.3,0);v.g.add(bar);
-      const a=Math.random()*6.283;police.push({v,bar,x:chassisBody.position.x+Math.cos(a)*120,z:chassisBody.position.z+Math.sin(a)*120,h:0,spd:0,flash:0});}}
-    if(!policeOn){police.forEach(p=>scene.remove(p.v.g));police.length=0;busted=0;statusEl.classList.remove('show');}};
+    if(!policeOn){clearPolice();busted=0;wanted=0;statusEl.classList.remove('show');}};
+  policeBtn.textContent='🚓 Polícia: ON'; policeBtn.classList.add('on');   // começa ligado
+
+  // ---------- BLOCOS DE SORTE/AZAR ----------
+  const fx={speed:0,policeSlow:0,policeFast:0,shield:0,noDrift:0,megaDrift:0};
+  const luckEl=document.getElementById('luck'); let luckMsgT=0;
+  const luckMat=new THREE.MeshStandardMaterial({color:0xffd23a,emissive:0xffb000,emissiveIntensity:0.6});
+  const luckBlocks=[];
+  function newLuckPos(){const ax=Math.random()<0.5,line=roadPos[(Math.random()*N)|0],t=rnd(-HALF,HALF);return ax?{x:t,z:line}:{x:line,z:t};}
+  for(let i=0;i<16;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(2.2,2.2,2.2),luckMat);
+    const p=newLuckPos();m.position.set(p.x,1.6,p.z);m.castShadow=true;scene.add(m);luckBlocks.push({m,active:true,t:Math.random()*6});}
+  const LUCK=[
+    {n:'⚡ VELOCIDADE EXTRA!',f:()=>fx.speed=8},
+    {n:'🐌 POLÍCIA LENTA!',f:()=>fx.policeSlow=9},
+    {n:'🛡️ ESCUDO — sem dano!',f:()=>fx.shield=8},
+    {n:'🔧 REPARO TOTAL!',f:()=>{damage=0;}},
+    {n:'🥶 AZAR: SEM DRIFT!',f:()=>fx.noDrift=7},
+    {n:'🌀 AZAR: MEGA DRIFT 100.000%!',f:()=>fx.megaDrift=7},
+    {n:'🚓 AZAR: POLÍCIA TURBO!',f:()=>fx.policeFast=7},
+  ];
+  function showLuck(t){luckEl.textContent=t;luckEl.classList.add('show');luckMsgT=2.6;}
+  function updateLuck(dt){
+    const px=chassisBody.position.x,pz=chassisBody.position.z;
+    for(const b of luckBlocks){
+      if(b.active){ b.m.rotation.y+=dt*2;b.m.rotation.x+=dt*1.3;b.m.position.y=1.6+Math.sin((tHL+b.t)*3)*0.25;
+        if(Math.abs(px-b.m.position.x)<2.7&&Math.abs(pz-b.m.position.z)<2.7){
+          b.active=false;b.m.visible=false;b.t=5+Math.random()*5;
+          const L=LUCK[(Math.random()*LUCK.length)|0];L.f();showLuck(L.n);
+          for(let k=0;k<6;k++)puff(b.m.position.x+rnd(-1,1),1.4,b.m.position.z+rnd(-1,1),0xffd23a);}
+      } else { b.t-=dt; if(b.t<=0){const p=newLuckPos();b.m.position.set(p.x,1.6,p.z);b.active=true;b.m.visible=true;} }
+    }
+    for(const k in fx){ if(fx[k]>0)fx[k]=Math.max(0,fx[k]-dt); }
+    if(luckMsgT>0){luckMsgT-=dt;if(luckMsgT<=0)luckEl.classList.remove('show');}
+  }
 
   // ---------- ÁUDIO (motor + vento) ----------
   let actx,eng,eng2,engGain,engFilt,windGain,muted=true;
@@ -305,31 +356,112 @@ try{
   // ---------- trânsito (visual) ----------
   const npcColors=[0x3a6ea5,0xc9a227,0x2d8a4e,0x9c3b3b,0xcdd2da,0x6b4ea8];
   const npcs=[];
-  for(let i=0;i<18;i++){const v=simpleCar(npcColors[i%npcColors.length]);scene.add(v.g);
+  for(let i=0;i<32;i++){const v=simpleCar(npcColors[i%npcColors.length]);scene.add(v.g);
     const horiz=Math.random()<0.5,line=roadPos[(Math.random()*N)|0],dir=Math.random()<0.5?1:-1,lane=dir>0?-RW/4:RW/4;
     npcs.push({v,horiz,line,dir,lane,p:rnd(-HALF,HALF),spd:6+Math.random()*7});}
   function nearInt(p){let m=1e9;for(const c of roadPos)m=Math.min(m,Math.abs(p-c));return m;}
-  function updateNpcs(dt,nsGo,ewGo){for(const c of npcs){const go=c.horiz?ewGo:nsGo;
+  function updateNpcs(dt,nsGo,ewGo){for(const c of npcs){
+    if(c.knocked){                                   // carro batido: voa girando e desacelera
+      c.kx+=c.kvx*dt; c.kz+=c.kvz*dt; c.kvx*=0.93; c.kvz*=0.93;
+      c.kang+=c.kspin*dt; c.kspin*=0.95; c.klife-=dt;
+      c.wx=c.kx; c.wz=c.kz;
+      c.v.g.position.set(c.kx,0.0,c.kz); c.v.g.rotation.y=c.kang;
+      c.v.g.rotation.z=Math.sin(c.klife*8)*0.15*Math.max(0,c.klife/2.2);   // sacode
+      if(c.klife<=0){                                  // some e respawna inteiro em outra rua
+        c.knocked=false; c.v.g.scale.set(1,1,1); c.v.g.rotation.z=0;
+        c.horiz=Math.random()<0.5; c.line=roadPos[(Math.random()*N)|0];
+        c.dir=Math.random()<0.5?1:-1; c.lane=c.dir>0?-RW/4:RW/4; c.p=rnd(-HALF,HALF);
+      }
+      continue;
+    }
+    const go=c.horiz?ewGo:nsGo;
     if(!(!go&&nearInt(c.p+c.dir*9)<8&&nearInt(c.p)<16))c.p+=c.dir*c.spd*dt;
     if(c.p>HALF+40)c.p=-HALF-40;if(c.p<-HALF-40)c.p=HALF+40;
     const wx=c.horiz?c.p:(c.line-c.lane),wz=c.horiz?(c.line+c.lane):c.p;
+    c.wx=wx;c.wz=wz;
     c.v.g.position.set(wx,0,wz);c.v.g.rotation.y=c.horiz?(c.dir>0?0:Math.PI):(c.dir>0?-Math.PI/2:Math.PI/2);}}
-  function updatePolice(dt){let chasing=false;const px=chassisBody.position.x,pz=chassisBody.position.z;
+  // COLISÃO com impacto: o carro batido AMASSA e é arremessado; o player toma tranco
+  function collideTraffic(){
+    for(const c of npcs){ if(c.wx===undefined||c.knocked)continue;
+      const dx=chassisBody.position.x-c.wx, dz=chassisBody.position.z-c.wz, d=Math.hypot(dx,dz);
+      if(d>0.001 && d<4.2){
+        const nx=dx/d, nz=dz/d;
+        const sp=Math.hypot(chassisBody.velocity.x,chassisBody.velocity.z);   // velocidade do player (m/s)
+        // você ATRAVESSA empurrando o carro (não trava igual parede) — perde só parte da velocidade
+        chassisBody.velocity.x*=0.82; chassisBody.velocity.z*=0.82;
+        crashed=true;   // bater é infração (chama a polícia)
+        if(sp>9 && fx.shield<=0){ damage=Math.min(100,damage+clamp(sp*2.4,5,42)); if(damage>=100)explode(); }  // dano só em velocidade alta
+        // arremessa o carro batido (na direção do impacto + impulso do player)
+        c.knocked=true; c.klife=2.4; c.kx=c.wx; c.kz=c.wz;
+        c.kvx=-nx*(7+sp*1.3)+chassisBody.velocity.x*0.4;
+        c.kvz=-nz*(7+sp*1.3)+chassisBody.velocity.z*0.4;
+        c.kang=c.v.g.rotation.y; c.kspin=(Math.random()-0.5)*7+(sp>10?4:0);
+        c.v.g.scale.set(1.18,0.55,1.1);                 // AMASSADO (achatado)
+        impact=Math.min(0.7,0.2+sp*0.045);              // tremor de impacto na câmera
+        for(let k=0;k<5;k++)puff(c.wx+rnd(-1,1),0.6,c.wz+rnd(-1,1));  // fumaça da batida
+      }
+    }
+  }
+  // EXPLOSÃO: quando o dano enche, o carro explode (e se a polícia estiver ON, é aí que ela te pega)
+  function explode(){
+    if(exploding>0)return;
+    const ex=chassisBody.position.x, ez=chassisBody.position.z;
+    for(let k=0;k<16;k++)puff(ex+rnd(-2.2,2.2),rnd(0.4,3.6),ez+rnd(-2.2,2.2),0xff7a1a);   // fogo
+    for(let k=0;k<16;k++)puff(ex+rnd(-2.6,2.6),rnd(0.4,3.6),ez+rnd(-2.6,2.6),0x141414);   // fumaça preta
+    impact=1.3; damage=0; flash=0.95; exploding=1.4;
+    carV.g.scale.set(1.35,0.4,1.3);                                   // amassa achatado
+    chassisBody.velocity.set(chassisBody.velocity.x*0.15,6,chassisBody.velocity.z*0.15); // pula
+    chassisBody.angularVelocity.set((Math.random()-.5)*7,(Math.random()-.5)*9,(Math.random()-.5)*7); // gira no ar
+    if(policeOn){ busted=2.8; wanted=0;
+      police.forEach(p=>{const a=Math.random()*6.283;p.x=ex+Math.cos(a)*170;p.z=ez+Math.sin(a)*170;}); }
+  }
+  // a viatura explode (quando você freia e ela bate na sua traseira)
+  function explodePolice(p){
+    for(let k=0;k<9;k++)puff(p.x+rnd(-2,2),rnd(0.4,3),p.z+rnd(-2,2),0xff7a1a);
+    for(let k=0;k<7;k++)puff(p.x+rnd(-2,2),rnd(0.4,3),p.z+rnd(-2,2),0x141414);
+    impact=Math.max(impact,0.7); wanted=Math.max(0,wanted-1.5);
+    const a=Math.random()*6.283; p.x=chassisBody.position.x+Math.cos(a)*165; p.z=chassisBody.position.z+Math.sin(a)*165; p.spd=0; p.h=a;
+  }
+  // colisão com árvores e postes (empurra + dano leve + fumaça)
+  function collideObstacles(){
+    const px=chassisBody.position.x, pz=chassisBody.position.z;
+    for(const o of obstacles){ const dx=px-o.x, dz=pz-o.z, rr=o.r+1.7;
+      if(Math.abs(dx)>rr||Math.abs(dz)>rr)continue;
+      const d=Math.hypot(dx,dz)||1; if(d<rr){
+        const nx=dx/d,nz=dz/d,push=rr-d; chassisBody.position.x+=nx*push; chassisBody.position.z+=nz*push;
+        const vDot=chassisBody.velocity.x*nx+chassisBody.velocity.z*nz;
+        if(vDot<0){ const sp=Math.hypot(chassisBody.velocity.x,chassisBody.velocity.z);
+          chassisBody.velocity.x-=vDot*nx; chassisBody.velocity.z-=vDot*nz;
+          chassisBody.velocity.x*=0.72; chassisBody.velocity.z*=0.72;
+          if(sp>4){ crashed=true; impact=Math.min(0.5,0.1+sp*0.03); for(let k=0;k<3;k++)puff(px+rnd(-1,1),0.7,pz+rnd(-1,1));
+            if(sp>9 && fx.shield<=0){ damage=Math.min(100,damage+clamp(sp*1.1,3,22)); if(damage>=100)explode(); } }
+        }
+      }
+    }
+  }
+  function updatePolice(dt){const px=chassisBody.position.x,pz=chassisBody.position.z;
     for(const p of police){const dx=px-p.x,dz=pz-p.z,d=Math.hypot(dx,dz)||1;const desired=Math.atan2(-dz,dx);
       let diff=desired-p.h;while(diff>Math.PI)diff-=6.283;while(diff<-Math.PI)diff+=6.283;p.h+=clamp(diff,-2.6*dt,2.6*dt);
-      const tgt=d>8?34:0;p.spd+=(tgt-p.spd)*Math.min(1,1.6*dt);p.x+=Math.cos(p.h)*p.spd*dt;p.z-=Math.sin(p.h)*p.spd*dt;
+      const tgt=fx.policeSlow>0?11:(fx.policeFast>0?40:27);   // mais lenta (dá pra fugir)
+      p.spd+=(tgt-p.spd)*Math.min(1,1.5*dt);p.x+=Math.cos(p.h)*p.spd*dt;p.z-=Math.sin(p.h)*p.spd*dt;
       p.v.g.position.set(p.x,0,p.z);p.v.g.rotation.y=p.h;p.flash+=dt;p.bar.material.emissiveIntensity=(p.flash%0.4)<0.2?3:0.2;
-      if(d<60)chasing=true;if(d<5){busted+=dt;}}
-    statusEl.classList.toggle('show',chasing);statusEl.textContent=busted>2?'🚨 VOCÊ FOI PEGO!':(chasing?'🚓 Polícia perseguindo!':'');
-    if(busted>2.5){busted=0;police.forEach(p=>{const a=Math.random()*6.283;p.x=px+Math.cos(a)*150;p.z=pz+Math.sin(a)*150;});}}
+      if(d<4.6){const nx=dx/d,nz=dz/d,sp=Math.hypot(chassisBody.velocity.x,chassisBody.velocity.z);
+        const fX=Math.cos(h)*dirF,fZ=-Math.sin(h)*dirF, behind=((p.x-px)*fX+(p.z-pz)*fZ)<0;   // a viatura está ATRÁS de você?
+        if(behind && (keys.down||keys.hb) && exploding<=0){ explodePolice(p); }   // FREIO-CHECK: você freia e ela bate na traseira -> ELA explode
+        else {                                                                     // ela bateu em você -> tranco + dano
+          chassisBody.position.x+=nx*0.6;chassisBody.position.z+=nz*0.6;
+          chassisBody.velocity.x=chassisBody.velocity.x*0.55+nx*5;chassisBody.velocity.z=chassisBody.velocity.z*0.55+nz*5;
+          impact=Math.min(0.8,0.3+sp*0.03);
+          if(sp>5&&fx.shield<=0){damage=Math.min(100,damage+26*dt);if(damage>=100)explode();}
+        }}}}
 
   // ---------- câmera ----------
   const camTmp=new THREE.Vector3(), look=new THREE.Vector3();
   camera.position.set(START.x-16,9,START.z);
-  const speedfx=document.getElementById('speedfx');
+  const speedfx=document.getElementById('speedfx'), flashEl=document.getElementById('flash');
 
   // ---------- loop ----------
-  const clock=new THREE.Clock();let tHL=0,topKmh=0,distM=0,statT=0;
+  const clock=new THREE.Clock();let tHL=0,topKmh=0,distM=0,statT=0,impact=0,damage=0,crashed=false,exploding=0,flash=0;
   const ENGINE=5200, MAXKMH=190;
   function frame(){
     const dt=Math.min(clock.getDelta(),0.05); tHL+=dt;const phase=tHL%16;
@@ -346,8 +478,8 @@ try{
     for(let i=0;i<4;i++)vehicle.wheelInfos[i].frictionSlip=baseSlip;
     const turning=(keys.left?1:0)-(keys.right?1:0);
     const powerSlide = !keys.hb && keys.up && turning!==0 && kmh>42;   // acelerar virando = continua deslizando
-    if(keys.hb){ vehicle.wheelInfos[2].frictionSlip=0.55; vehicle.wheelInfos[3].frictionSlip=0.55; }   // traseira desliza, mas controlável
-    else if(powerSlide){ vehicle.wheelInfos[2].frictionSlip=1.25; vehicle.wheelInfos[3].frictionSlip=1.25; }
+    if(keys.hb && fx.noDrift<=0){ vehicle.wheelInfos[2].frictionSlip=0.55; vehicle.wheelInfos[3].frictionSlip=0.55; }   // traseira desliza
+    else if(powerSlide && fx.noDrift<=0){ vehicle.wheelInfos[2].frictionSlip=1.25; vehicle.wheelInfos[3].frictionSlip=1.25; }
 
     // direção sensível à velocidade (+ inversão opcional)
     const maxSteer=0.55/(1+kmh*0.013);
@@ -357,13 +489,18 @@ try{
     // motor / freio / ré (dirF inverte tudo de forma consistente)
     const vSigned=vF*dirF;
     let engineF=0, brake=0; const throttle=keys.up?1:0;
-    if(keys.up && kmh<MAXKMH) engineF=ENGINE*dirF;
+    const vmaxNow=MAXKMH*(fx.speed>0?1.5:1);
+    if(keys.up && kmh<vmaxNow && exploding<=0) engineF=ENGINE*(fx.speed>0?1.7:1)*dirF;
     else if(keys.down){ if(vSigned>1) brake=40; else engineF=-ENGINE*0.5*dirF; }
     vehicle.applyEngineForce(engineF,2); vehicle.applyEngineForce(engineF,3);
     for(let i=0;i<4;i++)vehicle.setBrake(brake,i);
     if(keys.hb){ vehicle.setBrake(2,2); vehicle.setBrake(2,3); }   // freio de mão leve (a baixa aderência faz o drift)
     // DRIFT = só física dos pneus (sem rotação forçada). Você inicia com o freio de mão e segura no contravolante.
-    const drifting = (keys.hb||powerSlide) && turning!==0 && kmh>20;
+    const drifting = fx.noDrift<=0 && (keys.hb||powerSlide) && turning!==0 && kmh>20;
+    if(fx.megaDrift>0 && turning!==0 && kmh>5){   // AZAR: roda igual pião (100.000%)
+      vehicle.wheelInfos[2].frictionSlip=0.02; vehicle.wheelInfos[3].frictionSlip=0.02;
+      chassisBody.angularVelocity.y=chassisBody.angularVelocity.y*0.3+turning*steerSign*14;
+    }
 
     world.step(1/60,dt,3);
 
@@ -377,7 +514,23 @@ try{
         if(wi.raycastResult.hitPointWorld){const hp=wi.raycastResult.hitPointWorld;dropSkid(hp.x,hp.z,Math.atan2(fwd.z,fwd.x));
           if(Math.random()<0.6)puff(hp.x,0.5,hp.z);}}}
     carV.tl.forEach(m=>m.emissiveIntensity=keys.down?2.6:0.4);
-    updatePuffs(dt); updateNpcs(dt,nsGo,ewGo); if(policeOn)updatePolice(dt);
+    updatePuffs(dt); updateLuck(dt); updateNpcs(dt,nsGo,ewGo); collideTraffic(); collideObstacles();
+    // PROCURADO: a polícia só aparece se você infringir (velocidade / batida / drift perigoso)
+    if(policeOn){
+      let infra=0;
+      if(kmh>120) infra+=dt*0.7;
+      if(drifting && kmh>85) infra+=dt*0.5;
+      if(crashed) infra+=1.6;
+      wanted=clamp(wanted+infra-dt*0.3,0,10);
+      if(wanted>0.8 && !police.length) spawnPolice();
+      if(wanted<=0.02 && police.length && busted<=0) clearPolice();
+      if(police.length) updatePolice(dt);
+      if(busted>0){ busted-=dt; if(busted<=0)clearPolice(); statusEl.classList.add('show'); statusEl.textContent='🚨 VOCÊ EXPLODIU — POLÍCIA TE PEGOU!'; }
+      else if(police.length){ statusEl.classList.add('show'); statusEl.textContent='🚓 PROCURADO — polícia atrás de você!'; }
+      else statusEl.classList.remove('show');
+    } else statusEl.classList.remove('show');
+    crashed=false;
+    if(damage>38 && Math.random()<damage/260){ const rx=chassisBody.position.x-fwd.x*2.2, rz=chassisBody.position.z-fwd.z*2.2; puff(rx,0.9,rz,0x141414); }
 
     // câmera (atrás, com atraso, SEM tremor — alvo suavizado)
     const f3=new THREE.Vector3(fwd.x*dirF,0,fwd.z*dirF).normalize();
@@ -385,11 +538,18 @@ try{
     camera.position.lerp(camTmp,0.10);
     look.lerp(camTmp.set(chassisBody.position.x+f3.x*8,2,chassisBody.position.z+f3.z*8),0.16);
     camera.lookAt(look);
+    if(impact>0.01){camera.position.x+=(Math.random()-.5)*impact;camera.position.y+=(Math.random()-.5)*impact*0.6;camera.position.z+=(Math.random()-.5)*impact;impact*=0.84;}
     const fov=64+Math.min(kmh/MAXKMH,1)*16; camera.fov+=(fov-camera.fov)*0.07; camera.updateProjectionMatrix();
     speedfx.style.opacity=clamp((kmh-70)/140,0,0.6);
+    flashEl.style.opacity=flash; if(flash>0)flash=Math.max(0,flash-dt*2);
+    if(exploding>0){ exploding-=dt; if(exploding<=0){            // fim da explosão: carro inteiro, em pé
+      carV.g.scale.set(1,1,1); chassisBody.quaternion.set(0,0,0,1);
+      chassisBody.angularVelocity.set(0,0,0); chassisBody.velocity.set(0,0,0); chassisBody.position.y=1.6; } }
     sun.position.set(px+120,200,pz+90);sun.target.position.set(px,0,pz);
 
     const ga=audioUpdate(kmh,throttle);
+    if(damage>0)damage=Math.max(0,damage-dt*2.5);   // recupera devagar (batidas isoladas não explodem)
+    document.getElementById('dmgBar').style.width=damage+'%';
     document.getElementById('spd').textContent=Math.round(kmh);
     document.getElementById('gear').textContent=kmh<2?'N':((vF*dirF)<-0.3?'R':(ga?ga.gear:'1'));
     document.getElementById('surf').textContent=road?'Asfalto':'Grama';

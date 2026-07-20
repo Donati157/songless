@@ -23,8 +23,10 @@
   .empty.f{font-size:34px}
   #tableau{display:flex;gap:14px;margin-top:16px}
   .col{width:var(--cardW);position:relative}
-  .card{position:absolute;width:var(--cardW);height:var(--cardH);border-radius:9px;left:0;cursor:pointer;
+  .card{position:absolute;width:var(--cardW);height:var(--cardH);border-radius:9px;left:0;cursor:pointer;touch-action:none;
     box-shadow:0 2px 5px rgba(0,0,0,.35);transition:top .08s}
+  .draglayer{position:fixed;z-index:999;pointer-events:none;width:var(--cardW);left:0;top:0;filter:drop-shadow(0 14px 22px rgba(0,0,0,.5))}
+  .draglayer .card{box-shadow:0 12px 26px rgba(0,0,0,.5);transition:none}
   .top-row .card,.top-row .slot{position:relative}
   .face{background:#fbfdff;border:1px solid #c9d4e2}
   .back{background:
@@ -151,6 +153,7 @@ function autoToFoundation(card,pileId,idx){
 }
 
 function clickCard(pileId,idx){
+  if(ignoreClick){return;}
   if(pileId==='stock'){drawStock();return;}
   const pile=getPile(pileId);
   if(sel){ // tentar mover seleção pra cá
@@ -202,6 +205,8 @@ function cardEl(c,pileId,idx,top){
       <div class="r br ${col}">${RANKS[c.r]}<br>${SUITS[c.s]}</div>`;
   }
   if(sel&&sel.pile===pileId&&idx>=sel.idx)e.classList.add('sel');
+  e.dataset.pile=pileId; e.dataset.idx=idx;
+  if(c.up)e.onpointerdown=ev=>beginDrag(ev,pileId,idx,e);
   e.onclick=ev=>{ev.stopPropagation();clickCard(pileId,idx);};
   e.ondblclick=ev=>{ev.stopPropagation();dblCard(pileId,idx);};
   return e;
@@ -213,11 +218,11 @@ function render(){
     st.onclick=()=>drawStock();}
   else{st.className='slot empty';st.textContent='↻';st.onclick=()=>drawStock();}
   // WASTE
-  const wa=document.getElementById('waste'); wa.className='slot'; wa.innerHTML='';
+  const wa=document.getElementById('waste'); wa.className='slot'; wa.dataset.pile='waste'; wa.innerHTML='';
   if(waste.length){wa.appendChild(cardEl(waste[waste.length-1],'waste',waste.length-1,true));}
   else{wa.className='slot empty';wa.textContent='';}
   // FOUNDATIONS
-  for(let f=0;f<4;f++){const el=document.getElementById('f'+f);el.className='slot';el.innerHTML='';
+  for(let f=0;f<4;f++){const el=document.getElementById('f'+f);el.className='slot';el.dataset.pile='f'+f;el.innerHTML='';
     const pile=fnd[f];
     if(pile.length){el.appendChild(cardEl(pile[pile.length-1],'f'+f,pile.length-1,true));}
     else{el.className='slot empty f';el.textContent=SUITS[f];el.style.color='rgba(255,255,255,.18)';}
@@ -226,10 +231,10 @@ function render(){
   // TABLEAU
   const T=document.getElementById('tableau'); T.innerHTML='';
   for(let c=0;c<7;c++){
-    const col=document.createElement('div'); col.className='col';
+    const col=document.createElement('div'); col.className='col'; col.dataset.pile='t'+c;
     const pile=tab[c];
     col.style.height=Math.max(160,(pile.length-1)*26+120)+'px';
-    if(!pile.length){const e=document.createElement('div');e.className='card empty';e.style.position='absolute';
+    if(!pile.length){const e=document.createElement('div');e.className='card empty';e.style.position='absolute';e.dataset.pile='t'+c;
       e.onclick=()=>clickEmpty('t'+c);col.appendChild(e);}
     let y=0;
     pile.forEach((card,i)=>{const e=cardEl(card,'t'+c,i,i===pile.length-1);
@@ -238,6 +243,43 @@ function render(){
   }
   document.getElementById('moves').textContent=moves;
 }
+
+/* ---------- Arrastar e soltar ---------- */
+let drag=null, ignoreClick=false;
+function beginDrag(ev,pileId,idx,el){
+  if(ev.button!==undefined && ev.button!==0)return;
+  if(pileId==='stock')return;
+  const pile=getPile(pileId); const card=pile[idx];
+  if(!card||!card.up)return;
+  if((pileId==='waste'||pileId[0]==='f') && idx!==pile.length-1)return;  // só o topo do waste/base
+  drag={pileId,idx,el,startX:ev.clientX,startY:ev.clientY,moved:false,layer:null};
+  try{el.setPointerCapture(ev.pointerId);}catch(e){}
+}
+function startDragVisual(){
+  const {pileId,el}=drag; const els=[el];
+  if(pileId[0]==='t'){let n=el.nextElementSibling;while(n){if(n.classList.contains('card'))els.push(n);n=n.nextElementSibling;}}
+  drag.els=els;
+  const r=el.getBoundingClientRect(); drag.offX=drag.startX-r.left; drag.offY=drag.startY-r.top;
+  const layer=document.createElement('div'); layer.className='draglayer';
+  els.forEach((e,i)=>{const cl=e.cloneNode(true); cl.classList.remove('sel'); cl.style.top=(i*26)+'px'; cl.style.left='0'; layer.appendChild(cl);});
+  document.body.appendChild(layer); drag.layer=layer;
+  els.forEach(e=>e.style.visibility='hidden');
+}
+document.addEventListener('pointermove',ev=>{ if(!drag)return;
+  if(!drag.moved && Math.abs(ev.clientX-drag.startX)+Math.abs(ev.clientY-drag.startY)>6){drag.moved=true;startDragVisual();}
+  if(drag.moved){drag.layer.style.left=(ev.clientX-drag.offX)+'px';drag.layer.style.top=(ev.clientY-drag.offY)+'px';}
+});
+document.addEventListener('pointerup',ev=>{ if(!drag)return; const d=drag; drag=null;
+  if(!d.moved)return;
+  ignoreClick=true; setTimeout(()=>ignoreClick=false,60);
+  if(d.layer)d.layer.remove();
+  const t=document.elementFromPoint(ev.clientX,ev.clientY);
+  const pe=t&&t.closest('[data-pile]');
+  let done=false;
+  if(pe){const s={pile:d.pileId,idx:d.idx}, destId=pe.dataset.pile;
+    if(canMove(s,destId)){doMove(s,destId);done=true;}}
+  if(!done)render();
+});
 
 document.getElementById('new').onclick=newGame;
 document.getElementById('undo').onclick=undo;
