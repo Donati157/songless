@@ -364,7 +364,7 @@
 <div class="ov" id="ovCfg"><div class="panel">
   <button class="x" data-close="ovCfg">✕</button>
   <h3>⚙️ Ajustes & Spotify</h3>
-  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v28</span></div>
+  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v29</span></div>
 
   <div id="cfgDisconnected">
     <div id="cfgSteps">
@@ -796,7 +796,7 @@ function spTok(){ try{return JSON.parse(localStorage[LSK.tok]||'null');}catch(e)
 const spConnected=()=>!!spTok();
 
 // endereços liberados no app do Spotify (registre novos no dashboard antes de incluir aqui)
-const ORIGENS_OK=['https://donati157.github.io','https://songless.vercel.app','http://127.0.0.1:8899'];
+const ORIGENS_OK=['https://donati157.github.io','https://songless-theta.vercel.app','https://songless.vercel.app','http://127.0.0.1:8899'];
 async function spLogin(){
   if(!ORIGENS_OK.includes(location.origin)){
     toast('⚠️ Este endereço ainda não foi liberado no Spotify. Jogue em donati157.github.io/songless 😉');
