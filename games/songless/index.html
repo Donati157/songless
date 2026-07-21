@@ -360,7 +360,7 @@
 <div class="ov" id="ovCfg"><div class="panel">
   <button class="x" data-close="ovCfg">✕</button>
   <h3>⚙️ Ajustes & Spotify</h3>
-  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v22</span></div>
+  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v23</span></div>
 
   <div id="cfgDisconnected">
     <div id="cfgSteps">
@@ -845,6 +845,7 @@ async function spBoot(){
   try{
     sp.me=await spApi('/me');
     await spLoadPlaylists();
+    if(!shelfFor(sp.me.id).length)toast('🎧 Playlists registradas, '+(sp.me.display_name||'jogador')+'! Peça pra importar que elas viram jogáveis.');
     if(sp.me.product==='premium'&&useFull())initSdk();
     // conta sem prateleira: manda a lista de playlists pro dono do site importar
     try{
@@ -1195,7 +1196,7 @@ function plCard(pl,cls){
   const b=document.createElement('button');b.className='pl '+cls+(selPl===pl?' on':'');
   const img=pl.img?`style="background-image:url(${pl.img})"`:'';
   const cover=pl.img?'':(pl.e||'💚');
-  b.innerHTML=`<div class="cover" ${img}>${cover}</div><div class="nm">${esc(pl.n)}</div><div class="ct">${pl.locked?'🔒 privada':((pl.count||pl.tracks&&pl.tracks.length||'?')+' músicas')}</div>`;
+  b.innerHTML=`<div class="cover" ${img}>${cover}</div><div class="nm">${esc(pl.n)}</div><div class="ct">${pl.locked?(pl.lockTag||'🔒 privada'):((pl.count||pl.tracks&&pl.tracks.length||'?')+' músicas')}</div>`;
   if(pl.locked){ b.style.opacity=.45;
     b.onclick=()=>toast(pl.lockMsg||'O Spotify não deixa apps lerem o conteúdo de playlists 😔');
   } else b.onclick=()=>{selPl=pl;if(mode!=='free')setMode('free');renderPls();};
@@ -1212,6 +1213,20 @@ function renderPls(){
     const minhas=perfilId()?shelfFor(perfilId()):[]; // prateleira do perfil (senha ou Spotify)
     const fixadas=minhas.filter(p=>p.pin), resto=minhas.filter(p=>!p.pin);
     [...fixadas,...(comCurtidas?[renderPls.liked]:[]),...resto].forEach(pl=>box.appendChild(plCard(pl,'sp')));
+    if(!minhas.length){ // primeira vez deste perfil: ainda sem playlists importadas
+      if(spConnected()&&sp.playlists.length){
+        // conta conectada: mostra as playlists registradas (aguardando importação)
+        sp.playlists.forEach(p=>{
+          if(!p.slObj)p.slObj={sp:true,locked:true,n:p.name,img:p.images&&p.images[0]?p.images[0].url:'',count:'',
+            lockMsg:'Playlist registrada! Peça pra importar que ela vira jogável 😉',lockTag:'⏳ pra importar'};
+          box.appendChild(plCard(p.slObj,'sp'));
+        });
+      } else if(!spConnected()){
+        const b=document.createElement('button'); b.className='pl sp';
+        b.innerHTML='<div class="cover">👋</div><div class="nm">Primeira vez? Conecte o Spotify</div><div class="ct">pra registrar suas playlists</div>';
+        b.onclick=spLogin; box.appendChild(b);
+      }
+    }
   }
 }
 function renderSpotifyUI(){
