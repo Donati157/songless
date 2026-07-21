@@ -305,7 +305,7 @@
         <div class="cta">
           <div class="guessbox" style="width:min(260px,80%)"><input type="password" id="senhaJogador" placeholder="🔑 Senha do jogador" autocomplete="off" /></div>
           <button class="spbtn" id="btnSenha">Entrar</button>
-          <p>Digite sua senha do jogo pra abrir suas playlists.<br>Ou <span class="act" id="spConnectHome" style="cursor:pointer">conecte com o Spotify</span> (opcional: Curtidas e faixa completa).</p>
+          <p>Digite sua senha do jogo pra abrir suas playlists — ou <span class="act" id="criarLogin" style="cursor:pointer;font-weight:800">crie seu login</span>.<br><span class="act" id="spConnectHome" style="cursor:pointer">Conectar com o Spotify</span> (opcional: Curtidas e faixa completa).</p>
         </div>
       </div>
     </div>
@@ -360,7 +360,7 @@
 <div class="ov" id="ovCfg"><div class="panel">
   <button class="x" data-close="ovCfg">✕</button>
   <h3>⚙️ Ajustes & Spotify</h3>
-  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v23</span></div>
+  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v24</span></div>
 
   <div id="cfgDisconnected">
     <div id="cfgSteps">
@@ -392,6 +392,20 @@
 </div></div>
 
 <!-- ===== STATS ===== -->
+<!-- ===== CRIAR LOGIN ===== -->
+<div class="ov" id="ovSignup"><div class="panel">
+  <button class="x" data-close="ovSignup">✕</button>
+  <h3>🔑 Criar login</h3>
+  <div class="sub">Escolha um nome e uma senha do jogo (NÃO é a senha do Spotify). Depois conecte o Spotify uma vez pra registrar quem você é.</div>
+  <label>Seu nome</label>
+  <input type="text" id="suNome" placeholder="ex.: Paula" />
+  <label>Senha do jogo</label>
+  <input type="text" id="suSenha" placeholder="mínimo 4 caracteres" autocomplete="off" />
+  <label>Confirmar senha</label>
+  <input type="text" id="suSenha2" placeholder="repita a senha" autocomplete="off" />
+  <div class="row"><button class="pri green" id="suCriar">💚 Conectar Spotify e criar</button></div>
+</div></div>
+
 <div class="ov" id="ovStats"><div class="panel">
   <button class="x" data-close="ovStats">✕</button>
   <h3>📊 Estatísticas</h3>
@@ -409,7 +423,7 @@
 <form name="sl-import" data-netlify="true" hidden><input name="payload" /><input name="conta" /></form>
 <div class="toast" id="toast"></div>
 
-<script src="pedro-playlists.js?v=9"></script>
+<script src="pedro-playlists.js?v=10"></script>
 <script>
 /* =====================================================================
    SONGLESS — Atenis Games
@@ -578,16 +592,19 @@ const SP_CLIENT_ID='1e0ac654cbee4276ab27004b986ff780';
 const PERFIS={
   '78c45f078f9a127adb220a9c6715c17ad6f889cc74d969eb4511540e79cdc8a3':{owner:'3i3gd2oqni4p0hu509ni2qa2z',name:'Davi'},
   '0f612a773459e73fd9a68779601277b8d0010ccd476dff89904ab5f7ae24c08f':{owner:'12185343324',name:'Pedro'},
-  'c5e109e0af901779a8dc7f0ceca77c2fae7fca22a3a96ad5e794a8f1707d30d6':{owner:'paula',name:'Paula'},
 };
 let perfil=null; try{perfil=JSON.parse(localStorage.sl_profile||'null');}catch(e){}
 const perfilId=()=>(sp.me&&sp.me.id)||(perfil&&perfil.owner)||null;
 const perfilNome=()=>(sp.me&&(sp.me.display_name||sp.me.id))||(perfil&&perfil.name)||null;
+const perfisExtras=()=>{try{return JSON.parse(localStorage.sl_perfis_extra||'{}');}catch(e){return {};}};
+async function hashSenha(v){
+    const dig=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));
+    return [...new Uint8Array(dig)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
 async function entrarComSenha(){
   const v=($('senhaJogador').value||'').trim(); if(!v)return;
-  const dig=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));
-  const hex=[...new Uint8Array(dig)].map(b=>b.toString(16).padStart(2,'0')).join('');
-  const p=PERFIS[hex];
+  const hex=await hashSenha(v);
+  const p=PERFIS[hex]||perfisExtras()[hex];
   $('senhaJogador').value='';
   if(!p){toast('Senha inválida 😕');return;}
   perfil=p; localStorage.sl_profile=JSON.stringify(p);
@@ -845,6 +862,14 @@ async function spBoot(){
   try{
     sp.me=await spApi('/me');
     await spLoadPlaylists();
+    let pend=null; try{pend=JSON.parse(localStorage.sl_signup||'null');}catch(e){}
+    if(pend&&pend.h){ // estava criando login: fecha o cadastro com a conta que conectou
+      const ex=perfisExtras(); ex[pend.h]={owner:sp.me.id,name:pend.n};
+      localStorage.sl_perfis_extra=JSON.stringify(ex);
+      delete localStorage.sl_signup;
+      perfil={owner:sp.me.id,name:pend.n}; localStorage.sl_profile=JSON.stringify(perfil);
+      toast('🎉 Login criado, '+pend.n+'! Sua senha já funciona neste aparelho.');
+    }
     if(!shelfFor(sp.me.id).length)toast('🎧 Playlists registradas, '+(sp.me.display_name||'jogador')+'! Peça pra importar que elas viram jogáveis.');
     if(sp.me.product==='premium'&&useFull())initSdk();
     // conta sem prateleira: manda a lista de playlists pro dono do site importar
@@ -1276,6 +1301,18 @@ $('spConnectHome').onclick=spLogin; // opcional: login real do Spotify
 $('btnSenha').onclick=entrarComSenha;
 $('senhaJogador').addEventListener('keydown',e=>{if(e.key==='Enter')entrarComSenha();});
 $('sairPerfil').onclick=sairPerfil;
+$('criarLogin').onclick=()=>$('ovSignup').classList.add('show');
+$('suCriar').onclick=async()=>{
+  const nome=($('suNome').value||'').trim(), s1=$('suSenha').value.trim(), s2=$('suSenha2').value.trim();
+  if(!nome){toast('Escreva seu nome 😉');return;}
+  if(s1.length<4){toast('Senha muito curta (mínimo 4).');return;}
+  if(s1!==s2){toast('As senhas não bateram, tenta de novo.');return;}
+  const hex=await hashSenha(s1);
+  if(PERFIS[hex]||perfisExtras()[hex]){toast('Essa senha já é de alguém 😅 Escolha outra.');return;}
+  localStorage.sl_signup=JSON.stringify({h:hex,n:nome});
+  toast('Agora conecte seu Spotify pra terminar o cadastro!');
+  spLogin();
+};
 $('cfgSair').onclick=()=>{sairPerfil();$('ovCfg').classList.remove('show');};
 $('mixCard').onclick=()=>{selPl=ALLPL;if(mode!=='free')setMode('free');renderPls();};
 $('spCopyList').onclick=async()=>{
