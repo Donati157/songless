@@ -293,7 +293,7 @@
         <div class="guessbox" style="margin-top:4px">
           <input type="text" id="plLink" placeholder="Ou cole o link de uma playlist do Spotify…" />
         </div>
-        <div style="font-size:11px;color:var(--mut);margin:8px 2px 0">ℹ️ Entre com a sua senha do jogo pra ver as suas playlists (cada um tem a sua). O login do Spotify é opcional — serve pras Curtidas e pra faixa completa (Premium).</div>
+        <div style="font-size:11px;color:var(--mut);margin:8px 2px 0">ℹ️ Cada jogador tem a sua senha — é só digitar e entrar. Pra criar um perfil novo ou atualizar playlists, falem com o Davi.</div>
       </div>
 
       <div class="spGhost" id="spGhost">
@@ -307,9 +307,9 @@
           <div class="guessbox" style="width:min(280px,86%)"><input type="password" id="senhaJogador" placeholder="🔑 Senha do jogador" autocomplete="off" /></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
             <button class="spbtn" id="btnSenha">Entrar</button>
-            <button class="spbtn azul" id="criarLogin">✨ Criar login</button>
+            <button class="spbtn azul" id="criarLogin" style="display:none">✨ Criar login</button>
           </div>
-          <p><span class="act" id="spConnectHome" style="cursor:pointer">Conectar com o Spotify</span> (opcional: Curtidas e faixa completa)</p>
+          <p>Não tem senha? Peça a sua ao Davi 😉<span class="act" id="spConnectHome" style="display:none"></span></p>
         </div>
       </div>
     </div>
@@ -364,7 +364,7 @@
 <div class="ov" id="ovCfg"><div class="panel">
   <button class="x" data-close="ovCfg">✕</button>
   <h3>⚙️ Ajustes & Spotify</h3>
-  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v30</span></div>
+  <div class="sub">Conecte sua conta pra jogar com suas músicas. <span id="buildTag" style="opacity:.5">v31</span></div>
 
   <div id="cfgDisconnected">
     <div id="cfgSteps">
@@ -378,7 +378,7 @@
       <input type="text" id="cfgClientId" placeholder="ex.: 5f1c0a2b3d4e..." />
     </div>
     <div class="steps" id="cfgPerfil" style="display:none;margin-bottom:12px"></div>
-    <div class="row"><button class="sec" id="cfgSair" style="display:none">🚪 Sair do perfil</button><button class="pri green" id="spConnect">💚 Conectar com Spotify</button></div>
+    <div class="row"><button class="sec" id="cfgSair" style="display:none">🚪 Sair do perfil</button><button class="pri green" id="spConnect" style="display:none"></button></div>
   </div>
 
   <div id="cfgConnected" style="display:none">
@@ -1259,8 +1259,8 @@ function renderPls(){
         });
       } else if(!spConnected()){
         const b=document.createElement('button'); b.className='pl sp';
-        b.innerHTML='<div class="cover">👋</div><div class="nm">Primeira vez? Conecte o Spotify</div><div class="ct">pra registrar suas playlists</div>';
-        b.onclick=spLogin; box.appendChild(b);
+        b.innerHTML='<div class="cover">🎁</div><div class="nm">Suas playlists chegam em breve</div><div class="ct">fala com o Davi!</div>';
+        box.appendChild(b);
       }
     }
   }
@@ -1275,7 +1275,7 @@ function renderSpotifyUI(){
   $('quemJoga').textContent=perfilNome()?('jogando como '+perfilNome()):'';
   // com Client ID embutido, o jogador nunca vê a parte técnica
   const hasCid=!!(SP_CLIENT_ID||localStorage[LSK.cid]);
-  $('cfgSteps').style.display=SP_CLIENT_ID?'none':'';
+  $('cfgSteps').style.display='none';
   $('cfgDisconnected').style.display=spConnected()?'none':'';
   $('cfgConnected').style.display=spConnected()?'':'none';
   $('btnCfg').classList.toggle('green',conn);
